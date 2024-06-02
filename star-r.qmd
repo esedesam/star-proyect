@@ -37,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr)
 
 # Ajustes adicionales
 theme_set(
@@ -82,13 +82,43 @@ plotCombinedFeature <- function(starDf, featureId, featureLabel = NA, isNumeric 
       labs(x = featureLabel, y = "Frecuencia acumulada", fill = "Curso")
   }
 }
+
+# Numerización automática en tablas y figuras
+
+outputFormat   = opts_knit$get("rmarkdown.pandoc.to")
+
+capTabNo = 2; capFigNo = 1;
+
+capTab = function(x){
+  if(outputFormat == 'html'){
+    x = paste0("<strong>Table ", capTabNo,". </strong> ",x)
+    capTabNo <<- capTabNo + 1
+  }; x
+}
+
+capFig = function(x, y){
+  if(outputFormat == 'html'){
+    x = paste0("<strong>Figura ", capFigNo, ".</strong> ", x, " \\label{fig:", y, "}")
+    capFigNo <<- capFigNo + 1
+  }; x
+}
 ```
 
 ## Introducción
 
 El proyecto *STAR* (*Student-Teacher Achievement Ratio*) es un estudio sobre el tamaño de las clases llevado a cabo en Tennessee en tres fases, diseñado para determinar el efecto del **tamaño reducido de las clases** en los primeros grados sobre el **rendimiento académico** a corto y largo plazo de los alumnos. Se inspiró en un estudio prometedor realizado en Indiana sobre los beneficios de las clases pequeñas, pero también consideró los costos adicionales de más aulas y profesores. La legislatura de Tennessee autorizó este estudio de **cuatro años** para obtener datos sobre la eficacia de las clases reducidas.
 
-Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante pruebas estandarizadas. Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos.
+Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante [pruebas estandarizadas](https://en.wikipedia.org/wiki/Stanford_Achievement_Test_Series). Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos.
+
+```{r, groupsSTAR}
+groupsTable <- data.frame(
+  Grado = c("K", "1", "2", "3"),
+  `Tratamiento 1` = c("Clase pequeña", "Clase pequeña", "Clase pequeña", "Clase pequeña"),
+  `Tratamiento 2` = c("Clase regular + asistente", "Clase regular + asistente", "Clase regular + asistente", "Clase regular + asistente"),
+  Control = c("Clase regular", "Clase regular", "Clase regular", "Clase regular")
+)
+kable(groupsTable, caption = "<strong>Tabla 1. </strong> Grupos de control y tratamiento en el experimento STAR")
+```
 
 Los datos del estudio están disponibles en el paquete `AER` de `R`.
 
@@ -202,7 +232,7 @@ Encontramos con las siguientes características:
 
 Observamos que hay una gran cantidad de datos faltantes en la mayor parte de las variables.
 
-```{r aed-na}
+```{r aed-na, fig.cap=capFig("Porcentaje de valores faltantes en las variables del conjunto de datos.", y = "aed-na")}
 na_counts <- sapply(starDf, function(x) sum(is.na(x)))
 total_counts <- nrow(starDf)
 
@@ -238,71 +268,72 @@ cat("Número de entradas sin participaciones:", nAllStarsNA)
 
 A continuación, analizamos las distribuciones de las variables descritas.
 
-```{r aed-genero, fig.cap="Diagrama de barras del género de los estudiantes."}
+```{r aed-genero, fig.cap=capFig("Diagrama de barras del género de los estudiantes.", y = "aed-genero")}
 ggplot(starDf, aes(x = gender)) +
   geom_bar() +
   labs(x = "Género", y = "Frecuencia acumulada")
 ```
 
 
-```{r aed-etnicidad, fig.cap="Diagrama de barras de la etnicidad de los estudiantes."}
+```{r aed-etnicidad, fig.cap=capFig("Diagrama de barras de la etnicidad de los estudiantes.", y = "aed-etnicidad")}
 ggplot(starDf, aes(x = ethnicity)) +
   geom_bar() +
   labs(x = "Etnicidad", y = "Frecuencia acumulada")
 ```
 
 
-```{r aed-trim-nac, fig.cap="Diagrama de barras del trimestre de nacimiento de los estudiantes."}
+```{r aed-trim-nac, fig.cap=capFig("Diagrama de barras del trimestre de nacimiento de los estudiantes.", y = "aed-trim-nac")}
 ggplot(starDf, aes(x = birth)) +
   geom_bar() +
   labs(x = "Trimestre de nacimiento", y = "Frecuencia acumulada")
 ```
 
-```{r aed-grupo, fig.cap="Diagrama de barras del grupo experimental de todos los cursos."}
+```{r aed-grupo, fig.cap=capFig("Diagrama de barras del grupo experimental de todos los cursos.", y = "aed-grupo")}
 plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
 ```
 
-```{r aed-lectura, fig.cap="Boxplot de la puntuación de lectura de todos los cursos."}
+```{r aed-lectura, fig.cap=capFig("Boxplot de la puntuación de lectura de todos los cursos.", y = "aed-lectura")}
 plotCombinedFeature(starDf, "read", "Puntuación de lectura")
 ```
 
 
-```{r aed-mate, fig.cap="Boxplot de la puntuación de matemáticas de todos los cursos."}
+```{r aed-mate, fig.cap=capFig("Boxplot de la puntuación de matemáticas de todos los cursos.", y = "aed-mate")}
 plotCombinedFeature(starDf, "math", "Puntuación de matemáticas")
 ```
 
 
-```{r aed-almuerzo, fig.cap="Diagrama de barras de la participación en el almuerzo gratuito de todos los cursos."}
+```{r aed-almuerzo, fig.cap=capFig("Diagrama de barras de la participación en el almuerzo gratuito de todos los cursos.", y = "aed-almuerzo")}
 plotCombinedFeature(starDf, "lunch", "Almuerzo", isNumeric = FALSE)
 ```
 
-```{r aed-tipo-escuela, fig.cap="Diagrama de barras del tipo de escuela de todos los cursos."}
+```{r aed-tipo-escuela, fig.cap=capFig("Diagrama de barras del tipo de escuela de todos los cursos.", y = "aed-tipo-escuela")}
 plotCombinedFeature(starDf, "school", "Tipo de escuela", isNumeric = FALSE)
 ```
 
-```{r aed-titulo-maestro, fig.cap="Diagrama de barras del máximo título académico del maestro de todos los cursos."}
+```{r aed-titulo-maestro, fig.cap=capFig("Diagrama de barras del máximo título académico del maestro de todos los cursos.", y = "aed-titulo-maestro")}
 plotCombinedFeature(starDf, "degree", "Título académico", isNumeric = FALSE)
 ```
 
-```{r aed-nivel-carrera, fig.cap="Diagrama de barras del nivel de carrera del maestro de todos los cursos."}
+```{r aed-nivel-carrera, fig.cap=capFig("Diagrama de barras del nivel de carrera del maestro de todos los cursos.", y = "aed-nivel-carrera")}
 plotCombinedFeature(starDf, "ladder", "Nivel de carrera", isNumeric = FALSE)
 ```
 
-```{r aed-exp, fig.cap="Boxplot de la experiencia del maestro de todos los cursos."}
+```{r aed-exp, fig.cap=capFig("Boxplot de la experiencia del maestro de todos los cursos.", y = "aed-exp")}
 plotCombinedFeature(starDf, "experience", "Experiencia del maestro (años)")
 ```
 
-```{r aed-etnicidad-maestro, fig.cap="Diagrama de barras de la etnicidad del maestro de todos los cursos."}
+```{r aed-etnicidad-maestro, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro de todos los cursos.", y = "aed-etnicidad-maestro")}
 plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = FALSE)
 ```
 
-```{r aed-id-escuela, fig.cap="Diagrama de barras de la etnicidad del maestro de todos los cursos."}
+```{r aed-id-escuela, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro de todos los cursos.", y = "aed-id-escuela")}
 plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
 ```
 
 ### Identificación de efecto y tratamiento
 
 En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
+
 - Clase reducida frente a clase normal
 - Clase normal con ayuda frente a clase normal sin ayuda
 
