@@ -1,13 +1,19 @@
 ---
 title: "Proyecto STAR"
-subtitle: "Inferencia Causal. Máster en Ciencia de Datos (UV)"
+subtitle: "Inferencia Causal"
+description: "Máster en Ciencia de Datos (UV)"
 author: "Adrián Lara, Jesús Martínez, Miguel Muñoz, Samuel Ortega & Pablo Vicente"
+date: last-modified
+date-format: "DD-MM-YYYY"
+title-block-banner: "#B0C8D6"
 format: 
   html:
     embed-resources: true
+    smooth-scroll: true
     toc: true
     toc_float: yes
     theme: cosmo
+    fontcolor: black
 editor: source
 execute: 
   echo: false
@@ -16,6 +22,7 @@ execute:
   message: false
   include: true
 lang: es
+css: utilities/qmdStyle.css
 ---
 
 # Proyecto *STAR*
@@ -41,13 +48,18 @@ theme_set(
 
 defaultFillColor <- "steelblue"
 update_geom_defaults("bar", aes(fill = defaultFillColor))
+update_geom_defaults("boxplot", aes(fill = defaultFillColor))
 
 # Definición de funciones
-plotNumericFeature <- function(starDf, featureId, yLabel = NA) {
-  if (is.na(yLabel)) {
-    yLabel <- featureId
+plotCombinedFeature <- function(starDf, featureId, featureLabel = NA, isNumeric = TRUE, removeNa = FALSE) {
+  if (is.na(featureLabel)) {
+    featureLabel <- featureId
   }
-  plotDf <- pivot_longer(starDf, cols = starts_with(featureId), names_to = "grade", values_to = "readScore")
+  plotDf <- pivot_longer(
+    starDf,
+    cols = grep(paste0("^", featureId, ".{1}$"), colnames(starDf), value = TRUE),
+    names_to = "grade",
+    values_to = "value")
   
   featureLevels <- paste0(featureId, c("k", "1", "2", "3"))
   plotDf$grade <- factor(
@@ -56,9 +68,19 @@ plotNumericFeature <- function(starDf, featureId, yLabel = NA) {
     labels = c("Kindergarden", "Primero", "Segundo", "Tercero"),
     ordered = TRUE)
   
-  ggplot(plotDf, aes(x = grade, y = readScore)) +
-    geom_boxplot(fill = "steelblue") +
-    labs(x = "Curso", y = yLabel)
+  if (removeNa) {
+    plotDf <- na.omit(plotDf[, c("grade", "value")])
+  }
+  
+  if (isNumeric) {
+    ggplot(plotDf, aes(x = grade, y = value)) +
+      geom_boxplot() +
+      labs(x = "Curso", y = featureLabel)
+  } else {
+    ggplot(plotDf, aes(x = value, fill = grade)) +
+      geom_bar(position = "dodge") +
+      labs(x = featureLabel, y = "Frecuencia acumulada", fill = "Curso")
+  }
 }
 ```
 
@@ -72,11 +94,9 @@ Los datos del estudio están disponibles en el paquete `AER` de `R`.
 
 ## Descripción del problema
 
-### Análisis exploratorio de datos
-
 En primer lugar, cargamos los datos a nuestro espacio de trabajo.
 
-```{r}
+```{r cargar-datos}
 #| echo: true
 data(STAR)
 starDf <- STAR
@@ -178,52 +198,114 @@ Encontramos con las siguientes características:
 
 47. **schoolid3**: Factor que indica el ID de la escuela en tercer grado.
 
+### Análisis exploratorio de datos
+
 Observamos que hay una gran cantidad de datos faltantes en la mayor parte de las variables.
 
-```{r}
-# Calculate the number of NA values and the total number of entries per column
+```{r aed-na}
 na_counts <- sapply(starDf, function(x) sum(is.na(x)))
 total_counts <- nrow(starDf)
 
-# Calculate the percentage of NA values
 na_percentage <- (na_counts / total_counts) * 100
 
-# Convert to data frame for plotting
 na_percentage_df <- data.frame(
   Column = names(na_percentage),
   NA_Percentage = as.numeric(na_percentage)
 )
 
-# Create the bar plot
 ggplot(na_percentage_df, aes(x = Column, y = NA_Percentage)) +
   geom_bar(stat = "identity") +
-  labs(title = "Percentage of NA values in each column",
-       x = "Column",
-       y = "Percentage of NA values") +
+  labs(x = "Característica",
+       y = "Porcentaje de NA (%)") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_y_continuous(labels = scales::percent_format(scale = 1))
 ```
 
 Esto se debe a la naturaleza de los datos: por ejemplo, consideremos la primera observación.
 
-```{r}
+```{r aed-na-ejemplo}
 starDf[1, ]
 ```
 
 En la salida encontramos que el estudiante ingresó al experimento en tercer grado en una clase regular, por lo que el tamaño de la clase se registra en star3 y las otras variables indicadoras de tipo de clase son `NA`. De la misma manera, sus puntuaciones de matemáticas y lectura para el tercer grado están disponibles; sin embargo, los valores de estas variables para otros grados no están presentes por la misma razón.
 
-```{r}
-ggplot(STAR, aes(x = gender)) +
-  geom_bar()
-```
+A modo de comprobación, nos aseguramos todas las entradas corresponden a estudiantes que participaron en el proyecto *STAR* al menos durante uno de los cuatro años.
 
 ```{r}
-plotNumericFeature(starDf, "read", "Puntuación de lectura")
-plotNumericFeature(starDf, "math", "Puntuación de matemáticas")
-plotNumericFeature(starDf, "experience", "Experiencia del maestro (años)")
+nAllStarsNA <- sum(rowSums(is.na(starDf[, c("stark", "star1", "star2", "star3")])) == 4)
+cat("Número de entradas sin participaciones:", nAllStarsNA)
+```
+
+A continuación, analizamos las distribuciones de las variables descritas.
+
+```{r aed-genero, fig.cap="Diagrama de barras del género de los estudiantes."}
+ggplot(starDf, aes(x = gender)) +
+  geom_bar() +
+  labs(x = "Género", y = "Frecuencia acumulada")
 ```
 
 
+```{r aed-etnicidad, fig.cap="Diagrama de barras de la etnicidad de los estudiantes."}
+ggplot(starDf, aes(x = ethnicity)) +
+  geom_bar() +
+  labs(x = "Etnicidad", y = "Frecuencia acumulada")
+```
 
 
+```{r aed-trim-nac, fig.cap="Diagrama de barras del trimestre de nacimiento de los estudiantes."}
+ggplot(starDf, aes(x = birth)) +
+  geom_bar() +
+  labs(x = "Trimestre de nacimiento", y = "Frecuencia acumulada")
+```
 
+```{r aed-grupo, fig.cap="Diagrama de barras del grupo experimental de todos los cursos."}
+plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
+```
+
+```{r aed-lectura, fig.cap="Boxplot de la puntuación de lectura de todos los cursos."}
+plotCombinedFeature(starDf, "read", "Puntuación de lectura")
+```
+
+
+```{r aed-mate, fig.cap="Boxplot de la puntuación de matemáticas de todos los cursos."}
+plotCombinedFeature(starDf, "math", "Puntuación de matemáticas")
+```
+
+
+```{r aed-almuerzo, fig.cap="Diagrama de barras de la participación en el almuerzo gratuito de todos los cursos."}
+plotCombinedFeature(starDf, "lunch", "Almuerzo", isNumeric = FALSE)
+```
+
+```{r aed-tipo-escuela, fig.cap="Diagrama de barras del tipo de escuela de todos los cursos."}
+plotCombinedFeature(starDf, "school", "Tipo de escuela", isNumeric = FALSE)
+```
+
+```{r aed-titulo-maestro, fig.cap="Diagrama de barras del máximo título académico del maestro de todos los cursos."}
+plotCombinedFeature(starDf, "degree", "Título académico", isNumeric = FALSE)
+```
+
+```{r aed-nivel-carrera, fig.cap="Diagrama de barras del nivel de carrera del maestro de todos los cursos."}
+plotCombinedFeature(starDf, "ladder", "Nivel de carrera", isNumeric = FALSE)
+```
+
+```{r aed-exp, fig.cap="Boxplot de la experiencia del maestro de todos los cursos."}
+plotCombinedFeature(starDf, "experience", "Experiencia del maestro (años)")
+```
+
+```{r aed-etnicidad-maestro, fig.cap="Diagrama de barras de la etnicidad del maestro de todos los cursos."}
+plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = FALSE)
+```
+
+```{r aed-id-escuela, fig.cap="Diagrama de barras de la etnicidad del maestro de todos los cursos."}
+plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
+```
+
+### Identificación de efecto y tratamiento
+
+En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
+- Clase reducida frente a clase normal
+- Clase normal con ayuda frente a clase normal sin ayuda
+
+Por otra parte, escogemos como efecto la variación de una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
+
+Además, realizamos el análisis para cada año de manera independiente.
