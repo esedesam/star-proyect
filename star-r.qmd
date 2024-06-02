@@ -203,25 +203,20 @@ Encontramos con las siguientes características:
 Observamos que hay una gran cantidad de datos faltantes en la mayor parte de las variables.
 
 ```{r aed-na}
-# Calculate the number of NA values and the total number of entries per column
 na_counts <- sapply(starDf, function(x) sum(is.na(x)))
 total_counts <- nrow(starDf)
 
-# Calculate the percentage of NA values
 na_percentage <- (na_counts / total_counts) * 100
 
-# Convert to data frame for plotting
 na_percentage_df <- data.frame(
   Column = names(na_percentage),
   NA_Percentage = as.numeric(na_percentage)
 )
 
-# Create the bar plot
 ggplot(na_percentage_df, aes(x = Column, y = NA_Percentage)) +
   geom_bar(stat = "identity") +
-  labs(title = "Percentage of NA values in each column",
-       x = "Column",
-       y = "Percentage of NA values") +
+  labs(x = "Característica",
+       y = "Porcentaje de NA (%)") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_y_continuous(labels = scales::percent_format(scale = 1))
 ```
