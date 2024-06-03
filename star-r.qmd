@@ -332,14 +332,22 @@ plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = 
 
 ### Identificación de efecto y tratamiento
 
-En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
+En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, consideramos sólo el tratamiento de clase reducida frente a clase normal.
 
-- Clase reducida frente a clase normal
-- Clase normal con ayuda frente a clase normal sin ayuda
+Por otra parte, escogemos como variable de respuesta una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
 
-Por otra parte, escogemos como efecto la variación de una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
+Además, realizamos el análisis del efecto del tratamiento de manera independiente para cada curso escolar.
 
-Además, realizamos el análisis para cada año de manera independiente.
+```{r}
+starDf <- starDf %>% 
+  mutate(
+    notak = readk + mathk,
+    nota1 = read1 + math1,
+    nota2 = read2 + math2,
+    nota3 = read3 + math3
+  )
+```
+
 
 ```{r}
 nota <- data.frame(
@@ -356,4 +364,32 @@ nota <- data.frame(
 # Eliminar los registros con NA en cualquier variable 'nota'
 nota <- nota[complete.cases(nota), ]
 ```
+
+## Estimación naive del efecto del tratamiento
+
+Para obtener una primera estimación del efecto medio del tratamiento (AET) para cada curso podemos emplear el estimador diferencia en medias (DIM), definido como el valor promedio de la respuesta de los tratados menos el valor promedio de la respuesta para los no tratados. En ausencia de independencia, independencia condicional o asigación aleatoria del tratamiento, este es un estimador sesgado y es distinto al efecto medio del tratamiento.
+
+Según la documentación del estudio, tanto la asignación de alumnos como de profesores fue totalmente aleatoria, por lo que podemos tomar el DIM como una primera estimación válida del AET con la que comparar el resto de estimaciones que realizaremos más adelante.
+
+```{r}
+starDfk <- starDf %>% filter(stark != "regular+aide") %>% mutate(stark = ifelse(stark == "small", 1, 0))
+starDf1 <- starDf %>% filter(star1 != "regular+aide") %>% mutate(star1 = ifelse(star1 == "small", 1, 0))
+starDf2 <- starDf %>% filter(star2 != "regular+aide") %>% mutate(star2 = ifelse(star2 == "small", 1, 0))
+starDf3 <- starDf %>% filter(star3 != "regular+aide") %>% mutate(star3 = ifelse(star3 == "small", 1, 0))
+```
+
+
+```{r}
+dimk <- mean(starDfk[starDfk$stark==1, "notak"], na.rm = T) - mean(starDfk[starDfk$stark==0, "notak"], na.rm=T)
+dim1 <- mean(starDf1[starDf1$star1==1, "nota1"], na.rm = T) - mean(starDf1[starDf1$star1==0, "nota1"], na.rm=T)
+dim2 <- mean(starDf2[starDf2$star2==1, "nota2"], na.rm = T) - mean(starDf2[starDf2$star2==0, "nota2"], na.rm=T)
+dim3 <- mean(starDf3[starDf3$star3==1, "nota3"], na.rm = T) - mean(starDf3[starDf3$star3==0, "nota3"], na.rm=T)
+
+data.frame(
+  curso = c("k", "1", "2", "3"),
+  dim = c(dimk, dim1, dim2, dim3)
+)
+```
+
+De este primer resultado cabe destacar que el curso para el que el efecto del tratamiento es menor es el de guardería, seguido por tercero, luego segundo y a bastante diferenecia primero. Esta diferencia, no obstante, podría deberse a una mera casualidad como que los alumnos de la clase normal tuvieran unas notas muy pobres derante un año. En cualquier caso, observamos una estimación del efecto medio positiva para alumnos de todos los cursos.
 
