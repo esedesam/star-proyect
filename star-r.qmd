@@ -1,13 +1,19 @@
 ---
 title: "Proyecto STAR"
-subtitle: "Inferencia Causal. Máster en Ciencia de Datos (UV)"
+subtitle: "Inferencia Causal"
+description: "Máster en Ciencia de Datos (UV)"
 author: "Adrián Lara, Jesús Martínez, Miguel Muñoz, Samuel Ortega & Pablo Vicente"
+date: last-modified
+date-format: "DD-MM-YYYY"
+title-block-banner: "#B0C8D6"
 format: 
   html:
     embed-resources: true
+    smooth-scroll: true
     toc: true
     toc_float: yes
     theme: cosmo
+    fontcolor: black
 editor: source
 execute: 
   echo: false
@@ -16,6 +22,7 @@ execute:
   message: false
   include: true
 lang: es
+css: utilities/qmdStyle.css
 ---
 
 # Proyecto *STAR*
@@ -30,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr)
 
 # Ajustes adicionales
 theme_set(
@@ -41,13 +48,18 @@ theme_set(
 
 defaultFillColor <- "steelblue"
 update_geom_defaults("bar", aes(fill = defaultFillColor))
+update_geom_defaults("boxplot", aes(fill = defaultFillColor))
 
 # Definición de funciones
-plotNumericFeature <- function(starDf, featureId, yLabel = NA) {
-  if (is.na(yLabel)) {
-    yLabel <- featureId
+plotCombinedFeature <- function(starDf, featureId, featureLabel = NA, isNumeric = TRUE, removeNa = FALSE) {
+  if (is.na(featureLabel)) {
+    featureLabel <- featureId
   }
-  plotDf <- pivot_longer(starDf, cols = starts_with(featureId), names_to = "grade", values_to = "readScore")
+  plotDf <- pivot_longer(
+    starDf,
+    cols = grep(paste0("^", featureId, ".{1}$"), colnames(starDf), value = TRUE),
+    names_to = "grade",
+    values_to = "value")
   
   featureLevels <- paste0(featureId, c("k", "1", "2", "3"))
   plotDf$grade <- factor(
@@ -56,9 +68,39 @@ plotNumericFeature <- function(starDf, featureId, yLabel = NA) {
     labels = c("Kindergarden", "Primero", "Segundo", "Tercero"),
     ordered = TRUE)
   
-  ggplot(plotDf, aes(x = grade, y = readScore)) +
-    geom_boxplot(fill = "steelblue") +
-    labs(x = "Curso", y = yLabel)
+  if (removeNa) {
+    plotDf <- na.omit(plotDf[, c("grade", "value")])
+  }
+  
+  if (isNumeric) {
+    ggplot(plotDf, aes(x = grade, y = value)) +
+      geom_boxplot() +
+      labs(x = "Curso", y = featureLabel)
+  } else {
+    ggplot(plotDf, aes(x = value, fill = grade)) +
+      geom_bar(position = "dodge") +
+      labs(x = featureLabel, y = "Frecuencia acumulada", fill = "Curso")
+  }
+}
+
+# Numerización automática en tablas y figuras
+
+outputFormat   = opts_knit$get("rmarkdown.pandoc.to")
+
+capTabNo = 2; capFigNo = 1;
+
+capTab = function(x){
+  if(outputFormat == 'html'){
+    x = paste0("<strong>Table ", capTabNo,". </strong> ",x)
+    capTabNo <<- capTabNo + 1
+  }; x
+}
+
+capFig = function(x, y){
+  if(outputFormat == 'html'){
+    x = paste0("<strong>Figura ", capFigNo, ".</strong> ", x, " \\label{fig:", y, "}")
+    capFigNo <<- capFigNo + 1
+  }; x
 }
 ```
 
@@ -66,17 +108,25 @@ plotNumericFeature <- function(starDf, featureId, yLabel = NA) {
 
 El proyecto *STAR* (*Student-Teacher Achievement Ratio*) es un estudio sobre el tamaño de las clases llevado a cabo en Tennessee en tres fases, diseñado para determinar el efecto del **tamaño reducido de las clases** en los primeros grados sobre el **rendimiento académico** a corto y largo plazo de los alumnos. Se inspiró en un estudio prometedor realizado en Indiana sobre los beneficios de las clases pequeñas, pero también consideró los costos adicionales de más aulas y profesores. La legislatura de Tennessee autorizó este estudio de **cuatro años** para obtener datos sobre la eficacia de las clases reducidas.
 
-Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante pruebas estandarizadas. Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos.
+Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante [pruebas estandarizadas](https://en.wikipedia.org/wiki/Stanford_Achievement_Test_Series). Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos.
+
+```{r, groupsSTAR}
+groupsTable <- data.frame(
+  Grado = c("K", "1", "2", "3"),
+  `Tratamiento 1` = c("Clase pequeña", "Clase pequeña", "Clase pequeña", "Clase pequeña"),
+  `Tratamiento 2` = c("Clase regular + asistente", "Clase regular + asistente", "Clase regular + asistente", "Clase regular + asistente"),
+  Control = c("Clase regular", "Clase regular", "Clase regular", "Clase regular")
+)
+kable(groupsTable, caption = "<strong>Tabla 1. </strong> Grupos de control y tratamiento en el experimento STAR")
+```
 
 Los datos del estudio están disponibles en el paquete `AER` de `R`.
 
 ## Descripción del problema
 
-### Análisis exploratorio de datos
-
 En primer lugar, cargamos los datos a nuestro espacio de trabajo.
 
-```{r}
+```{r cargar-datos}
 #| echo: true
 data(STAR)
 starDf <- STAR
@@ -178,52 +228,220 @@ Encontramos con las siguientes características:
 
 47. **schoolid3**: Factor que indica el ID de la escuela en tercer grado.
 
+### Análisis exploratorio de datos
+
 Observamos que hay una gran cantidad de datos faltantes en la mayor parte de las variables.
 
-```{r}
-# Calculate the number of NA values and the total number of entries per column
+```{r aed-na, fig.cap=capFig("Porcentaje de valores faltantes en las variables del conjunto de datos.", y = "aed-na")}
 na_counts <- sapply(starDf, function(x) sum(is.na(x)))
 total_counts <- nrow(starDf)
 
-# Calculate the percentage of NA values
 na_percentage <- (na_counts / total_counts) * 100
 
-# Convert to data frame for plotting
 na_percentage_df <- data.frame(
   Column = names(na_percentage),
   NA_Percentage = as.numeric(na_percentage)
 )
 
-# Create the bar plot
 ggplot(na_percentage_df, aes(x = Column, y = NA_Percentage)) +
   geom_bar(stat = "identity") +
-  labs(title = "Percentage of NA values in each column",
-       x = "Column",
-       y = "Percentage of NA values") +
+  labs(x = "Característica",
+       y = "Porcentaje de NA (%)") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_y_continuous(labels = scales::percent_format(scale = 1))
 ```
 
 Esto se debe a la naturaleza de los datos: por ejemplo, consideremos la primera observación.
 
-```{r}
+```{r aed-na-ejemplo}
 starDf[1, ]
 ```
 
 En la salida encontramos que el estudiante ingresó al experimento en tercer grado en una clase regular, por lo que el tamaño de la clase se registra en star3 y las otras variables indicadoras de tipo de clase son `NA`. De la misma manera, sus puntuaciones de matemáticas y lectura para el tercer grado están disponibles; sin embargo, los valores de estas variables para otros grados no están presentes por la misma razón.
 
+A modo de comprobación, nos aseguramos todas las entradas corresponden a estudiantes que participaron en el proyecto *STAR* al menos durante uno de los cuatro años.
+
 ```{r}
-ggplot(STAR, aes(x = gender)) +
-  geom_bar()
+nAllStarsNA <- sum(rowSums(is.na(starDf[, c("stark", "star1", "star2", "star3")])) == 4)
+cat("Número de entradas sin participaciones:", nAllStarsNA)
+```
+
+A continuación, analizamos las distribuciones de las variables descritas.
+
+```{r aed-genero, fig.cap=capFig("Diagrama de barras del género de los estudiantes.", y = "aed-genero")}
+ggplot(starDf, aes(x = gender)) +
+  geom_bar() +
+  labs(x = "Género", y = "Frecuencia acumulada")
+```
+
+
+```{r aed-etnicidad, fig.cap=capFig("Diagrama de barras de la etnicidad de los estudiantes.", y = "aed-etnicidad")}
+ggplot(starDf, aes(x = ethnicity)) +
+  geom_bar() +
+  labs(x = "Etnicidad", y = "Frecuencia acumulada")
+```
+
+
+```{r aed-trim-nac, fig.cap=capFig("Diagrama de barras del trimestre de nacimiento de los estudiantes.", y = "aed-trim-nac")}
+ggplot(starDf, aes(x = birth)) +
+  geom_bar() +
+  labs(x = "Trimestre de nacimiento", y = "Frecuencia acumulada")
+```
+
+```{r aed-grupo, fig.cap=capFig("Diagrama de barras del grupo experimental de todos los cursos.", y = "aed-grupo")}
+plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
+```
+
+```{r aed-lectura, fig.cap=capFig("Boxplot de la puntuación de lectura de todos los cursos.", y = "aed-lectura")}
+plotCombinedFeature(starDf, "read", "Puntuación de lectura")
+```
+
+
+```{r aed-mate, fig.cap=capFig("Boxplot de la puntuación de matemáticas de todos los cursos.", y = "aed-mate")}
+plotCombinedFeature(starDf, "math", "Puntuación de matemáticas")
+```
+
+
+```{r aed-almuerzo, fig.cap=capFig("Diagrama de barras de la participación en el almuerzo gratuito de todos los cursos.", y = "aed-almuerzo")}
+plotCombinedFeature(starDf, "lunch", "Almuerzo", isNumeric = FALSE)
+```
+
+```{r aed-tipo-escuela, fig.cap=capFig("Diagrama de barras del tipo de escuela de todos los cursos.", y = "aed-tipo-escuela")}
+plotCombinedFeature(starDf, "school", "Tipo de escuela", isNumeric = FALSE)
+```
+
+```{r aed-titulo-maestro, fig.cap=capFig("Diagrama de barras del máximo título académico del maestro de todos los cursos.", y = "aed-titulo-maestro")}
+plotCombinedFeature(starDf, "degree", "Título académico", isNumeric = FALSE)
+```
+
+```{r aed-nivel-carrera, fig.cap=capFig("Diagrama de barras del nivel de carrera del maestro de todos los cursos.", y = "aed-nivel-carrera")}
+plotCombinedFeature(starDf, "ladder", "Nivel de carrera", isNumeric = FALSE)
+```
+
+```{r aed-exp, fig.cap=capFig("Boxplot de la experiencia del maestro de todos los cursos.", y = "aed-exp")}
+plotCombinedFeature(starDf, "experience", "Experiencia del maestro (años)")
+```
+
+```{r aed-etnicidad-maestro, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro de todos los cursos.", y = "aed-etnicidad-maestro")}
+plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = FALSE)
+```
+
+```{r aed-id-escuela, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro de todos los cursos.", y = "aed-id-escuela")}
+plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
+```
+
+### Identificación de efecto y tratamiento
+
+En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
+
+- Clase reducida frente a clase normal
+- Clase normal con ayuda frente a clase normal sin ayuda
+
+Por otra parte, escogemos como efecto la variación de una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
+
+Además, realizamos el análisis para cada año de manera independiente.
+
+```{r}
+nota <- data.frame(
+  # Kindergarten
+  notak <- starDf$readk + starDf$mathk,
+  # 1st Grade
+  nota1 <- starDf$read1 + starDf$math1,
+  # 2nd Grade
+  nota2 <- starDf$read2 + starDf$math2,
+  # 3rd Grade
+  nota3 <- starDf$read3 + starDf$math3
+)
+
+# Eliminar los registros con NA en cualquier variable 'nota'
+nota <- nota[complete.cases(nota), ]
+```
+
+
+```{r}
+plot(x)
+
+nota1_per <- round((nota1 - min(nota1, na.rm = TRUE)) / (max(nota1, na.rm = TRUE) - min(nota1, na.rm = TRUE)) * 100, 0)
+x <- density(nota1_per, na.rm = TRUE)
+
+plot(x)
+
+nota2_per <- round((nota2 - min(nota2, na.rm = TRUE)) / (max(nota2, na.rm = TRUE) - min(nota2, na.rm = TRUE)) * 100, 0)
+x <- density(nota2_per, na.rm = TRUE)
+
+plot(x)
+
+nota3_per <- round((nota3 - min(nota3, na.rm = TRUE)) / (max(nota3, na.rm = TRUE) - min(nota3, na.rm = TRUE)) * 100, 0)
+x <- density(nota3_per, na.rm = TRUE)
+
+plot(x)
+
+```
+```{r}
+# Función para convertir datos a índices de cuartiles
+convertir_a_cuartiles <- function(datos) {
+  cuartiles <- quantile(datos, probs = seq(0, 1, by = 0.01), na.rm = TRUE)
+  cuartiles <- unique(cuartiles)
+
+# Si hay menos de 5 límites únicos, añadir una pequeña cantidad para hacerlos únicos
+if (length(cuartiles) < 5) {
+  cuartiles <- sort(unique(c(cuartiles, cuartiles + 1e-10 * (1:length(cuartiles)))))
+}
+  as.numeric(cut(datos, breaks = cuartiles, include.lowest = TRUE))
+}
+
+# Crear un vector de ejemplo
+
+# Convertir los datos a índices de cuartiles
+notak_per <- convertir_a_cuartiles(notak)
+x <- density(notak_per, na.rm = TRUE)
+
+plot(x)
+
+nota1_per <- convertir_a_cuartiles(nota1)
+x <- density(nota1_per, na.rm = TRUE)
+
+plot(x)
+
+nota2_per <- convertir_a_cuartiles(nota2)
+x <- density(nota2_per, na.rm = TRUE)
+
+plot(x)
+
+nota3_per <- convertir_a_cuartiles(nota3)
+x <- density(nota3_per, na.rm = TRUE)
+
+plot(x)
+
+starDf <-  starDf |> mutate(notak_per,nota1_per,nota2_per,nota3_per)
 ```
 
 ```{r}
-plotNumericFeature(starDf, "read", "Puntuación de lectura")
-plotNumericFeature(starDf, "math", "Puntuación de matemáticas")
-plotNumericFeature(starDf, "experience", "Experiencia del maestro (años)")
+small_k <- starDf |> select(stark,notak_per) |>  filter(stark == 'small') |> 
+reg_k <- starDf |> select(stark,notak_per) |>  filter(stark != 'small')
+
+x <- density(small_k$notak_per, na.rm = TRUE)
+y <- density(reg_k$notak_per, na.rm = TRUE)
+
+ggplot(data = )
 ```
 
 
+```{r}
+first_lm <- lm(notak_per ~ stark,data = starDf)
+summary(first_lm)
+second_lm <- lm(nota1_per ~ star1,data = starDf)
+summary(second_lm)
+third_lm <- lm(nota2_per ~ star2,data = starDf)
+summary(third_lm)
+fourth_lm <- lm(nota3_per ~ star3 ,data = starDf)
+summary(fourth_lm)
+```
 
+```{r}
+starDf|> select(ethnicity,school1,school2,school3,schoolk)|> filter(schoolk == 'rural') |> count(ethnicity)
+```
 
-
+```{r}
+starDf|> select(ethnicity,school1,school2,school3,schoolk,stark,star1,star2,star3)|> filter(stark == "small") |> count(schoolk)
+```
