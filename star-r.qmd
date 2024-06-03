@@ -37,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, fastDummies)
 
 # Ajustes adicionales
 theme_set(
@@ -343,17 +343,190 @@ Además, realizamos el análisis para cada año de manera independiente.
 
 ```{r}
 nota <- data.frame(
-  # Kindergarten
-  notak <- starDf$readk + starDf$mathk,
-  # 1st Grade
-  nota1 <- starDf$read1 + starDf$math1,
-  # 2nd Grade
-  nota2 <- starDf$read2 + starDf$math2,
-  # 3rd Grade
-  nota3 <- starDf$read3 + starDf$math3
+  notak = starDf$readk + starDf$mathk,
+  nota1 = starDf$read1 + starDf$math1,
+  nota2 = starDf$read2 + starDf$math2,
+  nota3 = starDf$read3 + starDf$math3
 )
 
+# CompleteDf <- starDf + nota
 # Eliminar los registros con NA en cualquier variable 'nota'
-nota <- nota[complete.cases(nota), ]
+# nota <- nota[complete.cases(nota), ]
 ```
+
+```{r}
+summary(nota)
+```
+
+```{r}
+#Df para kindergarten
+StarkDf <- data.frame(
+  stark <- starDf$stark,
+  notak <- starDf$readk + starDf$mathk,
+  lunchk <- starDf$lunchk,
+  schoolk <- starDf$schoolk,
+  degreek <- starDf$degreek,
+  ladderk <- starDf$ladderk,
+  experiencek <- starDf$experiencek,
+  tethnicityk <- starDf$tethnicityk,
+  systemk <- starDf$systemk,
+  schoolidk <- starDf$schoolidk,
+  genderk <- starDf$gender,
+  ethnicityk <- starDf$ethnicity,
+  birthk <- starDf$birth
+)
+
+names(StarkDf) <- c(
+  "stark","notak", "lunchk", "schoolk", "degreek", "ladderk", "experiencek",
+  "tethnicityk", "systemk", "schoolidk", "genderk", "ethnicityk",
+  "birthk"
+)
+
+#Df para grade 1
+Star1Df <- data.frame(
+  star1 <- starDf$star1,
+  nota1 <- starDf$read1 + starDf$math1,
+  lunch1 <- starDf$lunch1,
+  school1 <- starDf$school1,
+  degree1 <- starDf$degree1,
+  ladder1 <- starDf$ladder1,
+  experience1 <- starDf$experience1,
+  tethnicity1 <- starDf$tethnicity1,
+  system1 <- starDf$system1,
+  schoolid1 <- starDf$schoolid1,
+  gender1 <- starDf$gender,
+  ethnicity1 <- starDf$ethnicity,
+  birth1 <- starDf$birth
+)
+
+names(Star1Df) <- c(
+  "star1","nota1", "lunch1", "school1", "degree1", "ladder1", "experience1",
+  "tethnicity1", "system1", "schoolid1", "gender1", "ethnicity1",
+  "birth1"
+)
+
+#Df para grade 2
+Star2Df <- data.frame(
+  star2 <- starDf$star2,
+  nota2 <- starDf$read2 + starDf$math2,
+  lunch2 <- starDf$lunch2,
+  school2 <- starDf$school2,
+  degree2 <- starDf$degree2,
+  ladder2 <- starDf$ladder2,
+  experience2 <- starDf$experience2,
+  tethnicity2 <- starDf$tethnicity2,
+  system2 <- starDf$system2,
+  schoolid2 <- starDf$schoolid2,
+  gender2 <- starDf$gender,
+  ethnicity2 <- starDf$ethnicity,
+  birth2 <- starDf$birth
+)
+
+names(Star2Df) <- c(
+  "star2","nota2", "lunch2", "school2", "degree2", "ladder2", "experience2",
+  "tethnicity2", "system2", "schoolid2", "gender2", "ethnicity2",
+  "birth2"
+)
+
+#Df para grade 3
+Star3Df <- data.frame(
+  star3 <- starDf$star3,
+  nota3 <- starDf$read3 + starDf$math3,
+  lunch3 <- starDf$lunch3,
+  school3 <- starDf$school3,
+  degree3 <- starDf$degree3,
+  ladder3 <- starDf$ladder3,
+  experience3 <- starDf$experience3,
+  tethnicity3 <- starDf$tethnicity3,
+  system3 <- starDf$system3,
+  schoolid3 <- starDf$schoolid3,
+  gender3 <- starDf$gender,
+  ethnicity3 <- starDf$ethnicity,
+  birth3 <- starDf$birth
+)
+
+names(Star3Df) <- c(
+  "star3","nota3", "lunch3", "school3", "degree3", "ladder3", "experience3",
+  "tethnicity3", "system3", "schoolid3", "gender3", "ethnicity3",
+  "birth3"
+)
+```
+
+
+```{r}
+# Eliminar los registros con NAs
+StarkDf <- StarkDf[complete.cases(StarkDf), ]
+Star1Df <- Star1Df[complete.cases(Star1Df), ]
+Star2Df <- Star2Df[complete.cases(Star2Df), ]
+Star3Df <- Star3Df[complete.cases(Star3Df), ]
+```
+
+
+```{r}
+# Realizar One-hot encoding de todas las variables categóricas
+StarkDf_encoded <- dummy_cols(StarkDf, select_columns = c(
+  "lunchk", "schoolk", "degreek", "ladderk", 
+  "tethnicityk", "genderk", "ethnicityk"
+))
+
+Star1Df_encoded <- dummy_cols(Star1Df, select_columns = c(
+  "lunch1", "school1", "degree1", "ladder1", 
+  "tethnicity1", "gender1", "ethnicity1"
+))
+
+Star2Df_encoded <- dummy_cols(Star2Df, select_columns = c(
+  "lunch2", "school2", "degree2", "ladder2", 
+  "tethnicity2", "gender2", "ethnicity2"
+))
+
+Star3Df_encoded <- dummy_cols(Star3Df, select_columns = c(
+  "lunch3", "school3", "degree3", "ladder3", 
+  "tethnicity3", "gender3", "ethnicity3"
+))
+```
+
+
+```{r}
+StarkDf_encoded_grouped <- StarkDf_encoded %>%
+  mutate(across(.cols = c(systemk, schoolidk), .fns = as.numeric)) %>%
+  group_by(stark) %>%
+  select(-c(lunchk, schoolk, degreek, ladderk, tethnicityk, genderk, ethnicityk, birthk))%>%
+  summarise_all(mean)
+
+Star1Df_encoded_grouped <- Star1Df_encoded %>%
+  mutate(across(.cols = c(system1, schoolid1), .fns = as.numeric)) %>%
+  group_by(star1) %>%
+  select(-c(lunch1, school1, degree1, ladder1, tethnicity1, gender1, ethnicity1, birth1))%>%
+  summarise_all(mean)
+
+Star2Df_encoded_grouped <- Star2Df_encoded %>%
+  mutate(across(.cols = c(system2, schoolid2), .fns = as.numeric)) %>%
+  group_by(star2) %>%
+  select(-c(lunch2, school2, degree2, ladder2, tethnicity2, gender2, ethnicity2, birth2))%>%
+  summarise_all(mean)
+
+Star3Df_encoded_grouped <- Star3Df_encoded %>%
+  mutate(across(.cols = c(system3, schoolid3), .fns = as.numeric)) %>%
+  group_by(star3) %>%
+  select(-c(lunch3, school3, degree3, ladder3, tethnicity3, gender3, ethnicity3, birth3))%>%
+  summarise_all(mean)
+```
+
+```{r}
+StarkDf_encoded_grouped
+```
+
+```{r}
+Star1Df_encoded_grouped
+```
+
+```{r}
+Star2Df_encoded_grouped
+```
+
+
+```{r}
+Star3Df_encoded_grouped
+```
+
 
