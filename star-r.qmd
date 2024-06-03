@@ -340,3 +340,20 @@ En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reduci
 Por otra parte, escogemos como efecto la variación de una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
 
 Además, realizamos el análisis para cada año de manera independiente.
+
+```{r}
+nota <- data.frame(
+  # Kindergarten
+  notak <- starDf$readk + starDf$mathk,
+  # 1st Grade
+  nota1 <- starDf$read1 + starDf$math1,
+  # 2nd Grade
+  nota2 <- starDf$read2 + starDf$math2,
+  # 3rd Grade
+  nota3 <- starDf$read3 + starDf$math3
+)
+
+# Eliminar los registros con NA en cualquier variable 'nota'
+nota <- nota[complete.cases(nota), ]
+```
+
