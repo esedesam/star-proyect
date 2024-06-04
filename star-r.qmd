@@ -37,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, fastDummies, MatchIt)
 
 # Ajustes adicionales
 theme_set(
@@ -417,13 +417,196 @@ starDf <-  starDf |> mutate(notak_per,nota1_per,nota2_per,nota3_per)
 ```
 
 ```{r}
-small_k <- starDf |> select(stark,notak_per) |>  filter(stark == 'small') |> 
-reg_k <- starDf |> select(stark,notak_per) |>  filter(stark != 'small')
+#Df para kindergarten
+StarkDf <- data.frame(
+  stark <- starDf$stark,
+  notak <- notak_per,
+  lunchk <- starDf$lunchk,
+  schoolk <- starDf$schoolk,
+  degreek <- starDf$degreek,
+  ladderk <- starDf$ladderk,
+  experiencek <- starDf$experiencek,
+  tethnicityk <- starDf$tethnicityk,
+  systemk <- starDf$systemk,
+  schoolidk <- starDf$schoolidk,
+  genderk <- starDf$gender,
+  ethnicityk <- starDf$ethnicity,
+  birthk <- starDf$birth
+)
 
-x <- density(small_k$notak_per, na.rm = TRUE)
-y <- density(reg_k$notak_per, na.rm = TRUE)
+names(StarkDf) <- c(
+  "stark","notak", "lunchk", "schoolk", "degreek", "ladderk", "experiencek",
+  "tethnicityk", "systemk", "schoolidk", "genderk", "ethnicityk",
+  "birthk"
+)
 
-ggplot(data = )
+#Df para grade 1
+Star1Df <- data.frame(
+  star1 <- starDf$star1,
+  nota1 <- nota1_per,
+  lunch1 <- starDf$lunch1,
+  school1 <- starDf$school1,
+  degree1 <- starDf$degree1,
+  ladder1 <- starDf$ladder1,
+  experience1 <- starDf$experience1,
+  tethnicity1 <- starDf$tethnicity1,
+  system1 <- starDf$system1,
+  schoolid1 <- starDf$schoolid1,
+  gender1 <- starDf$gender,
+  ethnicity1 <- starDf$ethnicity,
+  birth1 <- starDf$birth
+)
+
+names(Star1Df) <- c(
+  "star1","nota1", "lunch1", "school1", "degree1", "ladder1", "experience1",
+  "tethnicity1", "system1", "schoolid1", "gender1", "ethnicity1",
+  "birth1"
+)
+
+#Df para grade 2
+Star2Df <- data.frame(
+  star2 <- starDf$star2,
+  nota2 <- nota2_per,
+  lunch2 <- starDf$lunch2,
+  school2 <- starDf$school2,
+  degree2 <- starDf$degree2,
+  ladder2 <- starDf$ladder2,
+  experience2 <- starDf$experience2,
+  tethnicity2 <- starDf$tethnicity2,
+  system2 <- starDf$system2,
+  schoolid2 <- starDf$schoolid2,
+  gender2 <- starDf$gender,
+  ethnicity2 <- starDf$ethnicity,
+  birth2 <- starDf$birth
+)
+
+names(Star2Df) <- c(
+  "star2","nota2", "lunch2", "school2", "degree2", "ladder2", "experience2",
+  "tethnicity2", "system2", "schoolid2", "gender2", "ethnicity2",
+  "birth2"
+)
+
+#Df para grade 3
+Star3Df <- data.frame(
+  star3 <- starDf$star3,
+  nota3 <- nota3_per,
+  lunch3 <- starDf$lunch3,
+  school3 <- starDf$school3,
+  degree3 <- starDf$degree3,
+  ladder3 <- starDf$ladder3,
+  experience3 <- starDf$experience3,
+  tethnicity3 <- starDf$tethnicity3,
+  system3 <- starDf$system3,
+  schoolid3 <- starDf$schoolid3,
+  gender3 <- starDf$gender,
+  ethnicity3 <- starDf$ethnicity,
+  birth3 <- starDf$birth
+)
+names(Star3Df) <- c(
+  "star3","nota3", "lunch3", "school3", "degree3", "ladder3", "experience3",
+  "tethnicity3", "system3", "schoolid3", "gender3", "ethnicity3",
+  "birth3"
+)
+
+```
+
+
+```{r}
+# Realizar One-hot encoding de todas las variables categóricas
+StarkDf_encoded <- dummy_cols(StarkDf, select_columns = c(
+  "lunchk", "schoolk", "degreek", "ladderk", 
+  "tethnicityk", "genderk", "ethnicityk"
+))
+
+Star1Df_encoded <- dummy_cols(Star1Df, select_columns = c(
+  "lunch1", "school1", "degree1", "ladder1", 
+  "tethnicity1", "gender1", "ethnicity1"
+))
+
+Star2Df_encoded <- dummy_cols(Star2Df, select_columns = c(
+  "lunch2", "school2", "degree2", "ladder2", 
+  "tethnicity2", "gender2", "ethnicity2"
+))
+
+Star3Df_encoded <- dummy_cols(Star3Df, select_columns = c(
+  "lunch3", "school3", "degree3", "ladder3", 
+  "tethnicity3", "gender3", "ethnicity3"
+))
+```
+
+Eliminar columnas no numéricas
+
+```{r}
+StarkDf_encoded <- dummy_cols(StarkDf, select_columns = c(
+  "lunchk", "schoolk", "degreek", "ladderk", 
+  "tethnicityk", "genderk", "ethnicityk"
+))
+
+Star1Df_encoded <- dummy_cols(Star1Df, select_columns = c(
+  "lunch1", "school1", "degree1", "ladder1", 
+  "tethnicity1", "gender1", "ethnicity1"
+))
+
+Star2Df_encoded <- dummy_cols(Star2Df, select_columns = c(
+  "lunch2", "school2", "degree2", "ladder2", 
+  "tethnicity2", "gender2", "ethnicity2"
+))
+
+Star3Df_encoded <- dummy_cols(Star3Df, select_columns = c(
+  "lunch3", "school3", "degree3", "ladder3", 
+  "tethnicity3", "gender3", "ethnicity3"
+))
+```
+
+
+```{r}
+StarkDf_encoded_grouped <- StarkDf_encoded %>%
+  mutate(across(.cols = c(systemk, schoolidk), .fns = as.numeric)) %>%
+  group_by(stark) %>%
+  select(-c(lunchk, schoolk, degreek, ladderk, tethnicityk, genderk, ethnicityk, birthk))%>%
+  summarise_all(mean)
+
+Star1Df_encoded_grouped <- Star1Df_encoded %>%
+  mutate(across(.cols = c(system1, schoolid1), .fns = as.numeric)) %>%
+  group_by(star1) %>%
+  select(-c(lunch1, school1, degree1, ladder1, tethnicity1, gender1, ethnicity1, birth1))%>%
+  summarise_all(mean)
+
+Star2Df_encoded_grouped <- Star2Df_encoded %>%
+  mutate(across(.cols = c(system2, schoolid2), .fns = as.numeric)) %>%
+  group_by(star2) %>%
+  select(-c(lunch2, school2, degree2, ladder2, tethnicity2, gender2, ethnicity2, birth2))%>%
+  summarise_all(mean)
+
+Star3Df_encoded_grouped <- Star3Df_encoded %>%
+  mutate(across(.cols = c(system3, schoolid3), .fns = as.numeric)) %>%
+  group_by(star3) %>%
+  select(-c(lunch3, school3, degree3, ladder3, tethnicity3, gender3, ethnicity3, birth3))%>%
+  summarise_all(mean)
+```
+
+```{r}
+StarkDf_encoded_w_a <- StarkDf_encoded %>% filter(stark != "regular+aide") %>% mutate(stark = ifelse(stark == "small", 1, 0))
+Star1Df_encoded_w_a <- Star1Df_encoded %>% filter(star1 != "regular+aide") %>% mutate(star1 = ifelse(star1 == "small", 1, 0))
+Star2Df_encoded_w_a <- Star2Df_encoded %>% filter(star2 != "regular+aide") %>% mutate(star2 = ifelse(star2 == "small", 1, 0))
+Star3Df_encoded_w_a <- Star3Df_encoded %>% filter(star3 != "regular+aide") %>% mutate(star3 = ifelse(star3 == "small", 1, 0))
+```
+
+```{r}
+StarkDf_encoded_w_a <- StarkDf_encoded_w_a[complete.cases(StarkDf_encoded_w_a), ]
+Star1Df_encoded_w_a <- Star1Df_encoded_w_a[complete.cases(Star1Df_encoded_w_a), ]
+Star2Df_encoded_w_a <- Star2Df_encoded_w_a[complete.cases(Star2Df_encoded_w_a), ]
+Star3Df_encoded_w_a <- Star3Df_encoded_w_a[complete.cases(Star3Df_encoded_w_a), ]
+```
+
+
+```{r}
+#small_k <- starDf |> select(stark,notak_per) |>  filter(stark == 'small') |> 
+#reg_k <- starDf |> select(stark,notak_per) |>  filter(stark != 'small')
+
+#x <- density(small_k$notak_per, na.rm = TRUE)
+#y <- density(reg_k$notak_per, na.rm = TRUE)
+
 ```
 
 
@@ -445,3 +628,104 @@ starDf|> select(ethnicity,school1,school2,school3,schoolk)|> filter(schoolk == '
 ```{r}
 starDf|> select(ethnicity,school1,school2,school3,schoolk,stark,star1,star2,star3)|> filter(stark == "small") |> count(schoolk)
 ```
+
+# EFECTOS HETEROGENEOS
+
+```{r}
+library(reticulate)
+use_condaenv('inferencia')
+rpy2py <- r_to_py(StarkDf_encoded_w_a)
+```
+
+```{python}
+from doubleml import DoubleMLData
+```
+
+```{python}
+import pandas as pd
+import numpy as np
+
+# Create a pandas DataFrame from the R data frame
+rpy2py_df = pd.DataFrame(r.rpy2py)
+
+
+# # Perform one-hot encoding on the categorical variable 'ethnicity'
+# rpy2py_df_encoded = pd.get_dummies(rpy2py_df, columns=['ethnicity'], drop_first=True)
+# 
+# # Convert boolean columns to integers
+# boolean_columns = rpy2py_df_encoded.select_dtypes(include='bool').columns
+# rpy2py_df_encoded[boolean_columns] = rpy2py_df_encoded[boolean_columns].astype(int)
+# 
+# dummies = []
+# rpy2py_df_encoded.iloc[:,50:55]
+# for i in range(50,55):
+#   ls = list(rpy2py_df_encoded.iloc[:,i:i+1])
+#   dummies.append(ls)
+# dummies
+# Define the DoubleMLData object
+dml_data = DoubleMLData(rpy2py_df,
+                        y_col='notak',
+                        d_cols='stark',
+                        x_cols=None)
+```
+
+```{python}
+dml_data
+```
+
+
+```{python}
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+ml_m_rf = RandomForestRegressor()  # media condicional de la respuesta
+ml_e_rf = RandomForestClassifier() # propensity score 
+
+from xgboost import XGBClassifier, XGBRegressor
+
+ml_m_xgb = XGBRegressor(objective = "reg:squarederror")
+
+
+ml_e_xgb = XGBClassifier(use_label_encoder = False ,
+                         objective = "binary:logistic",
+                         eval_metric = "logloss")
+```
+
+```{python}
+from doubleml import DoubleMLPLR
+```
+
+```{python}
+
+np.random.seed(123)
+dml_plr_forest = DoubleMLPLR(dml_data,
+                             ml_l = ml_m_rf, # modelo ML para media condicional de respuesta
+                             ml_m = ml_e_rf, # modelo ML para propensity score
+                             n_folds = 10)
+
+```
+
+```{python}
+dml_plr_xgb = DoubleMLPLR(dml_data,
+                             ml_l = ml_m_xgb,
+                             ml_m = ml_e_xgb,
+                             n_folds = 10)
+```
+
+```{python}
+dml_plr_forest.fit()
+dml_plr_xgb.fit()
+```
+
+
+This is where the estimation takes place. Note that referring to R objects while in Python is done using the `r.` prefix. For example, `r.Y` returns R's `Y` object in Python.
+```{python}
+
+est = DMLCateEstimator(model_y=MultiTaskElasticNetCV(cv=3),model_t=MultiTaskElasticNetCV(cv=3))
+
+est.fit(r.notak_per, r.D, r.X, r.W)
+
+te_pred = est.const_marginal_effect(r.X_test)
+
+```
+```
+
