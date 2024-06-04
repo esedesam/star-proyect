@@ -106,7 +106,7 @@ capFig <- function(x, y){
 
 El proyecto *STAR* (*Student-Teacher Achievement Ratio*) es un estudio sobre el tamaño de las clases llevado a cabo en Tennessee en tres fases, diseñado para determinar el efecto del **tamaño reducido de las clases** en los primeros grados sobre el **rendimiento académico** a corto y largo plazo de los alumnos. Se inspiró en un estudio prometedor realizado en Indiana sobre los beneficios de las clases pequeñas, pero también consideró los costos adicionales de más aulas y profesores. La legislatura de Tennessee autorizó este estudio de **cuatro años** para obtener datos sobre la eficacia de las clases reducidas.
 
-Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante [pruebas estandarizadas](https://en.wikipedia.org/wiki/Stanford_Achievement_Test_Series). Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos.
+Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante [pruebas estandarizadas](https://en.wikipedia.org/wiki/Stanford_Achievement_Test_Series). Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos. En cualquier año de calendario, el experimento se llevó a cabo en solo uno de los grados, minimizando así el número de clases necesitadas.
 
 ```{r, groupsSTAR}
 groupsTable <- data.frame(
@@ -283,6 +283,23 @@ ggplot(starDf, aes(x = birth)) +
   geom_bar() +
   labs(x = "Trimestre de nacimiento", y = "Frecuencia acumulada")
 ```
+```{r aed-star, fig.cap=capFig("Diagrama de barras del tipo de clase STAR de los estudiantes.", y = "aed-star")}
+starDf %>%
+  summarise(
+    Kindergarden = sum(!is.na(stark)),
+    Primero = sum(!is.na(star1)),
+    Segundo = sum(!is.na(star2)),
+    Tercero = sum(!is.na(star3))
+  ) %>%
+  pivot_longer(cols = everything(), names_to = "Curso", values_to = "Observaciones") %>%
+  ggplot(aes(x = Curso, y = Observaciones, fill = Observaciones)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Curso", y = "Número de observaciones", fill = "Número de observaciones") +
+  scale_fill_gradient(low = "blue", high = "red")
+```
+
+
+
 
 ```{r aed-grupo, fig.cap=capFig("Diagrama de barras del grupo experimental de todos los cursos.", y = "aed-grupo")}
 plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
@@ -331,7 +348,7 @@ En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reduci
 -   Clase reducida frente a clase normal
 -   Clase normal con ayuda frente a clase normal sin ayuda
 
-Por otra parte, escogemos como efecto la variación de una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
+Por otra parte, escogemos como efecto la variación de una nueva variable **mark**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
 
 Además, realizamos el análisis para cada año de manera independiente.
 
@@ -455,7 +472,7 @@ rob_se_1 <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
 ```
 
 ```{r mean-differences-summarybasicModel, include = FALSE}
-stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
+html_basicModel <- stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
   title = capTab("Proyecto STAR: Estimación de diferencias, modelo básico"),
   header = FALSE, 
   model.numbers = F,
@@ -466,46 +483,13 @@ stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
   dep.var.caption  = "Variable dependiente: Curso",
   dep.var.labels.include = FALSE,
   se = rob_se_1)
+
+# quitar primer lista de la tabla esta
+html_basicModel <- html_basicModel[2:length(html_basicModel)]
 ```
 
 
-<table style="text-align:center"><caption><strong><strong>Tabla 2. </strong> Proyecto STAR: Estimación de diferencias, modelo básico</strong></caption>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="4">Variable dependiente: Curso</td></tr>
-<tr><td></td><td colspan="4" style="border-bottom: 1px solid black"></td></tr>
-<tr><td style="text-align:left"></td><td>K</td><td>1</td><td>2</td><td>3</td></tr>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">starksmall</td><td>13.899<sup>***</sup></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td>(2.454)</td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">starkregular+aide</td><td>0.314</td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td>(2.271)</td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">star1small</td><td></td><td>29.781<sup>***</sup></td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td>(2.831)</td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">star1regular+aide</td><td></td><td>11.959<sup>***</sup></td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td>(2.652)</td><td></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">star2small</td><td></td><td></td><td>19.394<sup>***</sup></td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td>(2.712)</td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">star2regular+aide</td><td></td><td></td><td>3.479</td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td>(2.545)</td><td></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">star3small</td><td></td><td></td><td></td><td>15.587<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(2.396)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">star3regular+aide</td><td></td><td></td><td></td><td>-0.291</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(2.273)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">Constant</td><td>918.043<sup>***</sup></td><td>1,039.393<sup>***</sup></td><td>1,157.807<sup>***</sup></td><td>1,228.506<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td>(1.633)</td><td>(1.785)</td><td>(1.815)</td><td>(1.680)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Observations</td><td>5,786</td><td>6,379</td><td>6,049</td><td>5,967</td></tr>
-<tr><td style="text-align:left">R<sup>2</sup></td><td>0.007</td><td>0.017</td><td>0.009</td><td>0.010</td></tr>
-<tr><td style="text-align:left">Adjusted R<sup>2</sup></td><td>0.007</td><td>0.017</td><td>0.009</td><td>0.010</td></tr>
-<tr><td style="text-align:left">Residual Std. Error</td><td>73.490 (df = 5783)</td><td>90.501 (df = 6376)</td><td>83.694 (df = 6046)</td><td>72.910 (df = 5964)</td></tr>
-<tr><td style="text-align:left">F Statistic</td><td>21.263<sup>***</sup> (df = 2; 5783)</td><td>56.341<sup>***</sup> (df = 2; 6376)</td><td>28.707<sup>***</sup> (df = 2; 6046)</td><td>30.250<sup>***</sup> (df = 2; 5964)</td></tr>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr></table>
+`r html_basicModel`
 
 Los resultados de la Tabla anterior dejan claro que hay un incremento del rendimiento del estudiante cuando está en clases reducidas (ver valores de los coeficientes, que además son muy significativos '***'). Las estimaciones están entre 13.899 y 29.781, si bien es cierto que el efecto en el curso 1 se separa un poco de los demás. Esto podría deberse a que en alguno de los años del programa los alumnos de la clase regular obtuvieran resultados bastante peores en comparación de los de las otras clases (ya que vemos que hay un efecto incluso notable con la clase regular + ayuda que en el resto no se ve).
 
@@ -523,90 +507,129 @@ A la vista de las variables con las que contamos, se añaden las siguientes como
 
 Haremos distintos modelos incluyendo más o menos variables de las mostradas. Concretamente:
 
-Modelo 1 (básico): $Y = \beta_0 + \beta_1 * SmallClass + \beta_2 * RegularClassWithAide + \epsilon$
+Modelo 1 (básico): $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \epsilon$
 
-Modelo 2: $Y = \beta_0 + \beta_1 * SmallClass + \beta_2 * RegularClassWithAide + \beta_3 * Experience + \epsilon$
+Modelo 2: $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \epsilon$
 
-Modelo 3: $Y = \beta_0 + \beta_1 * SmallClass + \beta_2 * RegularClassWithAide + \beta_3 * Experience + \beta_4 * School + \epsilon$
-
-Modelo 4: $Y = \beta_0 + \beta_1 * SmallClass + \beta_2 * RegularClassWithAide + \beta_3 * Experience + \beta_4 * School + \beta_5 * Gender +  \beta_6 * Lunch + \beta_7 * Ethnicity_grouped + \epsilon$
+Modelo 3: $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{School} \epsilon$
 
 
+Modelo 4: 
+\begin{equation}
+\begin{aligned}
+Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{School} \\
+&+ \beta_5 \cdot \text{Gender} + \beta_6 \cdot \text{Lunch} + \beta_7 \cdot \text{EthnicityGrouped} + \epsilon
+\end{aligned}
+\end{equation}
 
-```{r mean-differences-advancedModels}
+Modelo 5: 
+\begin{equation}
+\begin{aligned}
+Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{SchoolId} \\
+&+ \beta_5 \cdot \text{Gender} + \beta_6 \cdot \text{Lunch} + \beta_7 \cdot \text{EthnicityGrouped} + \epsilon
+\end{aligned}
+\end{equation}
+
+
+```{r mean-differences-advancedModels_k}
 # Using just kindergarten data
 starDf_k <- starDf %>%
-  select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk)
+  select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk, schoolidk)
 
 model2k <- lm(markK ~ stark + experiencek, data = starDf_k)
 model3k <- lm(markK ~ stark + experiencek + schoolk, data = starDf_k)
 model4k <- lm(markK ~ stark + experiencek + schoolk + gender + lunchk + ethnicity_grouped, data = starDf_k)
+model5k <- lm(markK ~ stark + experiencek + gender + lunchk + ethnicity_grouped + schoolidk, data = starDf_k)
 
 rob_se_k <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
                   sqrt(diag(vcovHC(model2k, type = "HC1"))),
                   sqrt(diag(vcovHC(model3k, type = "HC1"))),
-                  sqrt(diag(vcovHC(model4k, type = "HC1")))
+                  sqrt(diag(vcovHC(model4k, type = "HC1"))),
+                  sqrt(diag(vcovHC(model5k, type = "HC1")))
 )
 ```
 
-```{r mean-differences-summaryadvancedModels}
-stargazer(basicModelk, model2k, model3k, model4k,
-  title = capTab("Proyecto STAR: Estimación de diferencias, modelos avanzados"),
+
+```{r mean-differences-summaryadvancedModels_k, include = F}
+html_comparisonModels <- stargazer(
+  basicModelk, model2k, model3k, model4k, model5k,
+  title = capTab("Proyecto STAR: Estimación de diferencias: comparación entre modelos"),
   header = FALSE, 
-  model.numbers = F,
+  model.numbers = FALSE,
+  omit = "schoolidk",  # Omitir schoolidk
+  omit.labels = "Identificadores de escuela",
   omit.table.layout = "n",
   digits = 3, 
   type = "html",
-  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4"),
-  dep.var.caption  = "Variable dependiente: Curso",
+  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Modelo 5"),
+  dep.var.caption  = "Resultados para Kindergarten",
   dep.var.labels.include = FALSE,
-  se = rob_se_k)
+  se = rob_se_k
+)
 
+# Quiero que el último "No" de table_html se reemplaze por un "Sí", solo el último de ellos.
+html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl = TRUE)
+# quitar primera lista
+html_comparisonModels <- html_comparisonModels[2:length(html_comparisonModels)]
 ```
 
-<table style="text-align:center"><caption><strong><strong>Tabla 4. </strong> Proyecto STAR: Estimación de diferencias, modelos avanzados</strong></caption>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="4">Variable dependiente: Curso</td></tr>
-<tr><td></td><td colspan="4" style="border-bottom: 1px solid black"></td></tr>
-<tr><td style="text-align:left"></td><td>Modelo 1</td><td>Modelo 2</td><td>Modelo 3</td><td>Modelo 4</td></tr>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">starksmall</td><td>13.899<sup>***</sup></td><td>14.006<sup>***</sup></td><td>13.259<sup>***</sup></td><td>13.792<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td>(2.454)</td><td>(2.447)</td><td>(2.419)</td><td>(2.356)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">starkregular+aide</td><td>0.314</td><td>-0.601</td><td>-0.356</td><td>0.538</td></tr>
-<tr><td style="text-align:left"></td><td>(2.271)</td><td>(2.254)</td><td>(2.222)</td><td>(2.158)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">experiencek</td><td></td><td>1.469<sup>***</sup></td><td>1.211<sup>***</sup></td><td>1.092<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td></td><td>(0.169)</td><td>(0.172)</td><td>(0.169)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">schoolksuburban</td><td></td><td></td><td>34.774<sup>***</sup></td><td>6.062<sup>*</sup></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td>(2.854)</td><td>(3.439)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">schoolkrural</td><td></td><td></td><td>25.384<sup>***</sup></td><td>-2.440</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td>(2.472)</td><td>(3.548)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">schoolkurban</td><td></td><td></td><td>26.815<sup>***</sup></td><td>0.055</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td>(3.745)</td><td>(4.210)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">genderfemale</td><td></td><td></td><td></td><td>13.994<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(1.849)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">lunchkfree</td><td></td><td></td><td></td><td>-32.722<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(2.079)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">ethnicity_groupedcauc</td><td></td><td></td><td></td><td>13.754<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td>(3.030)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td style="text-align:left">Constant</td><td>918.043<sup>***</sup></td><td>904.721<sup>***</sup></td><td>885.398<sup>***</sup></td><td>907.450<sup>***</sup></td></tr>
-<tr><td style="text-align:left"></td><td>(1.633)</td><td>(2.222)</td><td>(2.625)</td><td>(3.193)</td></tr>
-<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td></tr>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Observations</td><td>5,786</td><td>5,766</td><td>5,766</td><td>5,748</td></tr>
-<tr><td style="text-align:left">R<sup>2</sup></td><td>0.007</td><td>0.020</td><td>0.048</td><td>0.104</td></tr>
-<tr><td style="text-align:left">Adjusted R<sup>2</sup></td><td>0.007</td><td>0.020</td><td>0.047</td><td>0.103</td></tr>
-<tr><td style="text-align:left">Residual Std. Error</td><td>73.490 (df = 5783)</td><td>73.085 (df = 5762)</td><td>72.078 (df = 5759)</td><td>69.976 (df = 5738)</td></tr>
-<tr><td style="text-align:left">F Statistic</td><td>21.263<sup>***</sup> (df = 2; 5783)</td><td>39.861<sup>***</sup> (df = 3; 5762)</td><td>48.009<sup>***</sup> (df = 6; 5759)</td><td>74.162<sup>***</sup> (df = 9; 5738)</td></tr>
-<tr><td colspan="5" style="border-bottom: 1px solid black"></td></tr></table>
+`r html_comparisonModels`
+
+Las columnas de los Modelos 2 a 5 muestran que la inclusión de variables adicionales de índole estudiantil, docente y escolar no han modificado drásticamente el valor de la estimación del efecto del tratamiento.
+Continuamos teniendo un valor positivo y significativo para el efecto de la clase pequeña en el rendimiento de los estudiantes, en contraposición al que otorga la ayuda en la clase regular que no es significativo. 
+
+De todas maneras, estos resultados ayudan a fortalecer el hecho de que lo observado con el modelo básico no sufre demasiado de la posible asignación no aleatoria de los tratamientos. Añadir las variables de identificación aumenta considerablemente el valor del $R^2_\text{ajustado}$, disminuyendo además el valor de los errores estándar de los coeficientes que nos interesan (hay algo más de precisión, por tanto).
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# MarkK media según schoolId para kindergarten
+starDf_k %>%
+  group_by(schoolk) %>%
+  summarise(meanMarkK = mean(markK, na.rm = TRUE)) %>%
+  arrange(desc(meanMarkK))
+
+# Graficalo
+starDf_k %>%
+  ggplot(aes(x = schoolk, y = markK)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Distribución de las puntuaciones de matemáticas y lectura en kindergarten",
+       x = "schoolk", y = "markK")
+```
+
+```{r}
+# MarkK media según schoolId para kindergarten
+starDf_k %>%
+  group_by(schoolidk) %>%
+  summarise(meanMarkK = mean(markK, na.rm = TRUE)) %>%
+  arrange(desc(meanMarkK))
+
+# Graficalo con ggplot
+starDf_k %>%
+  ggplot(aes(x = schoolidk, y = markK)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Distribución de las puntuaciones de matemáticas y lectura en kindergarten",
+       x = "schoolidk", y = "markK")
+```
+
+
+
+```{r}
+# msot
+```
 
 
 
