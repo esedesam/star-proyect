@@ -25,7 +25,6 @@ lang: es
 css: utilities/qmdStyle.css
 ---
 
-# Proyecto *STAR*
 
 ```{r setup}
 #| include: false
@@ -102,7 +101,7 @@ capFig <- function(x, y){
 }
 ```
 
-## Introducción
+# Introducción
 
 El proyecto *STAR* (*Student-Teacher Achievement Ratio*) es un estudio sobre el tamaño de las clases llevado a cabo en Tennessee en tres fases, diseñado para determinar el efecto del **tamaño reducido de las clases** en los primeros grados sobre el **rendimiento académico** a corto y largo plazo de los alumnos. Se inspiró en un estudio prometedor realizado en Indiana sobre los beneficios de las clases pequeñas, pero también consideró los costos adicionales de más aulas y profesores. La legislatura de Tennessee autorizó este estudio de **cuatro años** para obtener datos sobre la eficacia de las clases reducidas.
 
@@ -120,7 +119,7 @@ kable(groupsTable, caption = "<strong>Tabla 1. </strong> Grupos de control y tra
 
 Los datos del estudio están disponibles en el paquete `AER` de `R`.
 
-## Descripción del problema
+# Descripción del problema
 
 En primer lugar, cargamos los datos a nuestro espacio de trabajo.
 
@@ -226,7 +225,7 @@ Encontramos con las siguientes características:
 
 47. **schoolid3**: Factor que indica el ID de la escuela en tercer grado.
 
-### Análisis exploratorio de datos
+## Análisis exploratorio de datos
 
 Observamos que hay una gran cantidad de datos faltantes en la mayor parte de las variables.
 
@@ -341,7 +340,7 @@ plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = F
 plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
 ```
 
-### Identificación de efecto y tratamiento
+## Identificación de efecto y tratamiento
 
 En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
 
@@ -352,7 +351,7 @@ Por otra parte, escogemos como efecto la variación de una nueva variable **mark
 
 Además, realizamos el análisis para cada año de manera independiente.
 
-### Distribuciones para las variables mirando por la variable de tratamiento
+## Distribuciones para las variables mirando por la variable de tratamiento
 
 ```{r gender-by-treatment, fig.cap=capFig("Diagrama de barras del género de los estudiantes por tratamiento.", y = "gender-by-treatment")}
 starDf %>%
@@ -405,7 +404,7 @@ starDf %>%
 
 Vemos que en general las distribuciones no son muy diferentes para los distintos tratamientos.
 
-## Análisis causal
+# Análisis del efecto del tratamiento
 
 Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso.
 
@@ -417,9 +416,9 @@ starDf$mark3 <- starDf$read3 + starDf$math3
 ```
 
 
-### Estimación naive del efecto del tratamiento
+## Estimación naive del efecto del tratamiento
 
-Para obtener una primera estimación del efecto medio del tratamiento (AET) para cada curso podemos emplear el estimador diferencia en medias (DIM), definido como el valor promedio de la respuesta de los tratados menos el valor promedio de la respuesta para los no tratados. En ausencia de independencia, independencia condicional o asigación aleatoria del tratamiento, este es un estimador sesgado y es distinto al efecto medio del tratamiento.
+Para obtener una primera estimación del efecto medio del tratamiento (ATE) para cada curso podemos emplear el estimador diferencia en medias (DIM), definido como el valor promedio de la respuesta de los tratados menos el valor promedio de la respuesta para los no tratados. En ausencia de independencia, independencia condicional o asigación aleatoria del tratamiento, este es un estimador sesgado y es distinto al efecto medio del tratamiento.
 
 Según la documentación del estudio, tanto la asignación de alumnos como de profesores fue totalmente aleatoria, por lo que podemos tomar el DIM como una primera estimación válida del ATE con la que comparar el resto de estimaciones que realizaremos más adelante.
 
@@ -444,13 +443,13 @@ kable(naiveEstimates, caption = capTab("Estimaciones naive del efecto del tratam
 
 Estos resultados son exactamente los mismos que los que se mostrarán a continuación con el modelo básico de regresión lineal. Sin embargo, lo siguiente será más riguroso al incluir también errores y cuestiones de significancia.
 
-### Modelo de regresión
+## Modelos de regresión
 
-#### Modelo básico
+### Modelo básico
 
 Consideramos el modelo:
 
-$Y = \beta_0 + \beta_1 * SmallClass + \beta_2 * RegularClassWithAide + \epsilon$
+$Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \epsilon$
 
 donde $Y$ es la variable respuesta que nos será de interés, $\beta_0$ es el intercepto, $\beta_1$ es el indicador de la clase pequeña, $\beta_2$ es el indicador de la clase regular con ayuda. $\epsilon$ es el término de ruido usual incorporado en el modelo.
 
@@ -460,12 +459,12 @@ Se calculan a continuación modelos lineales de regresión siguiendo la expresi�
 
 
 ```{r mean-differences-basicModel}
-basicModelk <- lm(readk + mathk ~ stark, data = starDf)
-basicModel1 <- lm(read1 + math1 ~ star1, data = starDf)
-basicModel2 <- lm(read2 + math2 ~ star2, data = starDf)
-basicModel3 <- lm(read3 + math3 ~ star3, data = starDf)
+basicModelk <- lm(markK ~ stark, data = starDf)
+basicModel1 <- lm(mark1 ~ star1, data = starDf)
+basicModel2 <- lm(mark2 ~ star2, data = starDf)
+basicModel3 <- lm(mark3 ~ star3, data = starDf)
 
-rob_se_1 <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
+rob_se_basic <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
                  sqrt(diag(vcovHC(basicModel1, type = "HC1"))),
                  sqrt(diag(vcovHC(basicModel2, type = "HC1"))),
                  sqrt(diag(vcovHC(basicModel3, type = "HC1"))))
@@ -473,7 +472,7 @@ rob_se_1 <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
 
 ```{r mean-differences-summarybasicModel, include = FALSE}
 html_basicModel <- stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
-  title = capTab("Proyecto STAR: Estimación de diferencias, modelo básico"),
+  title = capTab("Estimación de diferencias entre cursos: modelo básico"),
   header = FALSE, 
   model.numbers = F,
   omit.table.layout = "n",
@@ -482,7 +481,7 @@ html_basicModel <- stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
   column.labels = c("K", "1", "2", "3"),
   dep.var.caption  = "Variable dependiente: Curso",
   dep.var.labels.include = FALSE,
-  se = rob_se_1)
+  se = rob_se_basic)
 
 # quitar primer lista de la tabla esta
 html_basicModel <- html_basicModel[2:length(html_basicModel)]
@@ -493,7 +492,7 @@ html_basicModel <- html_basicModel[2:length(html_basicModel)]
 
 Los resultados de la Tabla anterior dejan claro que hay un incremento del rendimiento del estudiante cuando está en clases reducidas (ver valores de los coeficientes, que además son muy significativos '***'). Las estimaciones están entre 13.899 y 29.781, si bien es cierto que el efecto en el curso 1 se separa un poco de los demás. Esto podría deberse a que en alguno de los años del programa los alumnos de la clase regular obtuvieran resultados bastante peores en comparación de los de las otras clases (ya que vemos que hay un efecto incluso notable con la clase regular + ayuda que en el resto no se ve).
 
-#### Modelos con más variables
+### Modelos con más variables
 
 Buscaremos añadir más variables para ver si puede mejorarse la variación observada en la variable dependiente (la suma de las puntuaciones de lectura y matemáticas). Además, se intenta de esta manera intengar mitigar o resolver posibles problemas en una asignación no totalmente aleatoria de los tratamientos.
 
@@ -526,10 +525,19 @@ Modelo 5:
 \begin{equation}
 \begin{aligned}
 Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{SchoolId} \\
+&+ \epsilon
+\end{aligned}
+\end{equation}
+
+Modelo 6: 
+\begin{equation}
+\begin{aligned}
+Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{SchoolId} \\
 &+ \beta_5 \cdot \text{Gender} + \beta_6 \cdot \text{Lunch} + \beta_7 \cdot \text{EthnicityGrouped} + \epsilon
 \end{aligned}
 \end{equation}
 
+Se presentan los resultados solo para el curso de jardín de infancia en aras de la brevedad. Los resultados para los otros cursos son similares.
 
 ```{r mean-differences-advancedModels_k}
 # Using just kindergarten data
@@ -539,21 +547,23 @@ starDf_k <- starDf %>%
 model2k <- lm(markK ~ stark + experiencek, data = starDf_k)
 model3k <- lm(markK ~ stark + experiencek + schoolk, data = starDf_k)
 model4k <- lm(markK ~ stark + experiencek + schoolk + gender + lunchk + ethnicity_grouped, data = starDf_k)
-model5k <- lm(markK ~ stark + experiencek + gender + lunchk + ethnicity_grouped + schoolidk, data = starDf_k)
+model5k <- lm(markK ~ stark + experiencek + schoolidk, data = starDf_k)
+model6k <- lm(markK ~ stark + experiencek + gender + lunchk + ethnicity_grouped + schoolidk, data = starDf_k)
 
 rob_se_k <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
                   sqrt(diag(vcovHC(model2k, type = "HC1"))),
                   sqrt(diag(vcovHC(model3k, type = "HC1"))),
                   sqrt(diag(vcovHC(model4k, type = "HC1"))),
-                  sqrt(diag(vcovHC(model5k, type = "HC1")))
+                  sqrt(diag(vcovHC(model5k, type = "HC1"))),
+                  sqrt(diag(vcovHC(model6k, type = "HC1")))
 )
 ```
 
 
 ```{r mean-differences-summaryadvancedModels_k, include = F}
 html_comparisonModels <- stargazer(
-  basicModelk, model2k, model3k, model4k, model5k,
-  title = capTab("Proyecto STAR: Estimación de diferencias: comparación entre modelos"),
+  basicModelk, model2k, model3k, model4k, model5k, model6k,
+  title = capTab("Estimación de diferencias: comparación entre modelos"),
   header = FALSE, 
   model.numbers = FALSE,
   omit = "schoolidk",  # Omitir schoolidk
@@ -561,15 +571,19 @@ html_comparisonModels <- stargazer(
   omit.table.layout = "n",
   digits = 3, 
   type = "html",
-  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Modelo 5"),
+  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Modelo 5", "Modelo 6"),
   dep.var.caption  = "Resultados para Kindergarten",
   dep.var.labels.include = FALSE,
   se = rob_se_k
 )
 
-# Quiero que el último "No" de table_html se reemplaze por un "Sí", solo el último de ellos.
+# Replace last "no", by "yes"
+html_comparisonModels[length(html_comparisonModels)] <- gsub("no", "yes", html_comparisonModels[length(html_comparisonModels)])
+
+
 html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl = TRUE)
-# quitar primera lista
+html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl = TRUE)
+
 html_comparisonModels <- html_comparisonModels[2:length(html_comparisonModels)]
 ```
 
@@ -580,56 +594,207 @@ Continuamos teniendo un valor positivo y significativo para el efecto de la clas
 
 De todas maneras, estos resultados ayudan a fortalecer el hecho de que lo observado con el modelo básico no sufre demasiado de la posible asignación no aleatoria de los tratamientos. Añadir las variables de identificación aumenta considerablemente el valor del $R^2_\text{ajustado}$, disminuyendo además el valor de los errores estándar de los coeficientes que nos interesan (hay algo más de precisión, por tanto).
 
+Fijando los efectos que nos ofrecen los identificadores de escuela el efecto de la experiencia del profesorado sale a la luz (modelo número 5). Se observa que cada año de experiencia otorga 0.74 puntos más en la suma de las puntuaciones de lectura y matemáticas.
+
+Todos estos valores cuantitativos de incremento en la nota resultarían útiles si estuviéramos acostumbrados con el sistema de puntuaciones. Sin embargo, como no es el caso, lo mejor es hacer una comparación en términos de desviaciones estándar o bien de incremento de percentiles.
+
+```{r mean-differences-summary-adapted}
+# desviaciones estandar muestrales de las notas según el tratamiento en los distintos cursos / años
+SSD <- c("K" = sd(na.omit(starDf$markK)),
+         "1" = sd(na.omit(starDf$mark1)),
+         "2" = sd(na.omit(starDf$mark2)),
+         "3" = sd(na.omit(starDf$mark3)))
 
 
 
+# traducción de resultados normalizando por desviaciones estándar muestrales
 
+# Valores de estimación de efecto
+Small <- c("K" = as.numeric(coef(basicModelk)[2]/SSD[1]),
+           "1" = as.numeric(coef(basicModel1)[2]/SSD[2]),
+           "2" = as.numeric(coef(basicModel2)[2]/SSD[3]),
+           "3" = as.numeric(coef(basicModel3)[2]/SSD[4]))
 
+# Errores estándar de los coeficientes estimados
+SmallSE <- c("K" = as.numeric(rob_se_basic[[1]][2]/SSD[1]),
+             "1" = as.numeric(rob_se_basic[[2]][2]/SSD[2]),
+             "2" = as.numeric(rob_se_basic[[3]][2]/SSD[3]),
+             "3" = as.numeric(rob_se_basic[[4]][2]/SSD[4]))
 
+# Valores de estimación de efecto
+RegAide<- c("K" = as.numeric(coef(basicModelk)[3]/SSD[1]),
+            "1" = as.numeric(coef(basicModel1)[3]/SSD[2]),
+            "2" = as.numeric(coef(basicModel2)[3]/SSD[3]),
+            "3" = as.numeric(coef(basicModel3)[3]/SSD[4]))
 
+# Errores estándar de los coeficientes estimados
+RegAideSE <- c("K" = as.numeric(rob_se_basic[[1]][3]/SSD[1]),
+               "1" = as.numeric(rob_se_basic[[2]][3]/SSD[2]),
+               "2" = as.numeric(rob_se_basic[[3]][3]/SSD[3]),
+               "3" = as.numeric(rob_se_basic[[4]][3]/SSD[4]))
 
-
-
-
-
-
-```{r}
-# MarkK media según schoolId para kindergarten
-starDf_k %>%
-  group_by(schoolk) %>%
-  summarise(meanMarkK = mean(markK, na.rm = TRUE)) %>%
-  arrange(desc(meanMarkK))
-
-# Graficalo
-starDf_k %>%
-  ggplot(aes(x = schoolk, y = markK)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(title = "Distribución de las puntuaciones de matemáticas y lectura en kindergarten",
-       x = "schoolk", y = "markK")
+summaryBasicModel <- t(round(data.frame(
+                        Small, SmallSE, RegAide, RegAideSE, SSD),
+                        digits =  3))
 ```
 
-```{r}
-# MarkK media según schoolId para kindergarten
-starDf_k %>%
-  group_by(schoolidk) %>%
-  summarise(meanMarkK = mean(markK, na.rm = TRUE)) %>%
-  arrange(desc(meanMarkK))
+```{r mean-differences-summary-adapted-tab}
+kable(summaryBasicModel, caption = capTab("Estimaciones de efecto del tratamiento normalizadas por desviación estándar muestral"))
+```
 
-# Graficalo con ggplot
-starDf_k %>%
-  ggplot(aes(x = schoolidk, y = markK)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(title = "Distribución de las puntuaciones de matemáticas y lectura en kindergarten",
-       x = "schoolidk", y = "markK")
+La diferencia que otorga estar en la clase reducida está en torno al 0.2 de desviación estándar en incremento de rendimiento, a excepción de lo ocurrido en el curso 1, por lo comentado anteriormente.
+
+```{r dfSaving}
+# Guardar starDf como csv para luego cargarlo en Python
+write.csv(starDf, "./data/starDf.csv", row.names = FALSE)
+```
+## Uso de Meta-Learners
+
+
+```{python }
+# importamos metalearners
+from econml.metalearners import TLearner, SLearner, XLearner
+from econml.dr import DRLearner
+
+#  importamos librerias auxiliares
+import numpy as np
+from numpy.random import binomial, multivariate_normal, normal, uniform
+from sklearn import linear_model
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingRegressor
+import matplotlib.pyplot as plt
+import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import Lasso
+from sklearn.pipeline import make_pipeline
+```
+
+```{python}
+seed = 666
+```
+
+```{python dfLoading}
+starDf = pd.read_csv("./data/starDf.csv")
+```
+
+```{python}
+def preprocess_data(df, star_column, experience_column, school_column, lunch_column, ethnicity_column, mark_column):
+    
+    # Seleccionar columnas relevantes y eliminar filas con valores faltantes
+    df_processed = df[[star_column, experience_column, school_column, 'gender', lunch_column, ethnicity_column, mark_column]].dropna()
+    
+    # Filtrar las filas donde el valor de la columna star no sea 'regular+aide'
+    df_processed = df_processed[df_processed[star_column] != 'regular+aide']
+    
+    # Convertir la columna 'star' en variable binaria (1 para 'small', 0 para otro valor)
+    df_processed[star_column] = df_processed[star_column].apply(lambda x: 1 if x == 'small' else 0)
+    
+    # Convertir la columna 'gender' en variable binaria (1 para 'female', 0 para otro valor)
+    df_processed['gender'] = df_processed['gender'].apply(lambda x: 1 if x == 'female' else 0)
+    
+    # Convertir la columna 'lunch' en variable binaria (1 para 'free', 0 para otro valor)
+    df_processed[lunch_column] = df_processed[lunch_column].apply(lambda x: 1 if x == 'free' else 0)
+    
+    # Convertir la columna 'ethnicity_grouped' en variable binaria (1 para 'cauc', 0 para otro valor)
+    df_processed[ethnicity_column] = df_processed[ethnicity_column].apply(lambda x: 1 if x == 'cauc' else 0)
+    
+    # Crear variables dummy para la columna 'school'
+    df_processed = pd.get_dummies(df_processed, columns=[school_column])
+    
+    return df_processed
+```
+
+```{python}
+starDf_k = preprocess_data(starDf, "stark", "experiencek", "schoolk", "lunchk", "ethnicity_grouped", "markK")
+starDf_1 = preprocess_data(starDf, "star1", "experience1", "school1", "lunch1", "ethnicity_grouped", "mark1")
+starDf_2 = preprocess_data(starDf, "star2", "experience2", "school2", "lunch2", "ethnicity_grouped", "mark2")
+starDf_3 = preprocess_data(starDf, "star3", "experience3", "school3", "lunch3", "ethnicity_grouped", "mark3")
+```
+
+
+```{python}
+Yk = starDf_k["markK"].values
+Xk = starDf_k.drop(columns=["markK", "stark"]).values
+Tk = starDf_k["stark"].values
+
+Y1 = starDf_1["mark1"].values
+X1 = starDf_1.drop(columns=["mark1", "star1"]).values
+T1 = starDf_1["star1"].values
+
+Y2 = starDf_2["mark2"].values
+X2 = starDf_2.drop(columns=["mark2", "star2"]).values
+T2 = starDf_2["star2"].values
+
+Y3 = starDf_3["mark3"].values
+X3 = starDf_3.drop(columns=["mark3", "star3"]).values
+T3 = starDf_3["star3"].values
+```
+
+```{python}
+print(Tk.mean(), T1.mean(), T2.mean(), T3.mean())
+```
+
+
+```{python}
+xTrain_k, xTest_k, tTrain_k, tTest_k, yTrain_k, yTest_k = train_test_split(Xk, Tk, Yk, test_size=0.2, random_state=seed)
+```
+
+
+```{python}
+# respuesta-tratamiento
+y0 = yTrain_k[tTrain_k==0]
+y1 = yTrain_k[tTrain_k==1]
+respuesta=[y0,y1]
+etiquetas = ["control","tratados"]
+
+plt.figure(figsize=(8, 6))  # Opcional: Define el tamaño de la figura
+plt.boxplot(respuesta, labels=etiquetas)
+
+plt.title('Distribución de la respuesta por estatus de tratamiento')
+plt.ylabel('Valor de la respuesta')
+plt.xlabel('Tratamiento')
+
+# Mostrar el gráfico
+plt.show()
+```
+
+
+```{python}
+# Estimación efecto por diferencia de medias (sesgado)
+y1.mean() - y0.mean()
+```
+
+```{python}
+# Estimamos  modelo lineal con interacciones; haremos regularización LASSO
+ 
+poly = PolynomialFeatures(degree=4, include_bias=False)
+linregLASSO =  Lasso(alpha=0.01)
+overall_model = make_pipeline(poly,linregLASSO) 
+
+# Instanciamos el S learner
+S_learner = SLearner(overall_model=overall_model)
+
+# Entrenamos S_learner (incluimos la opcion inference=bootstrap para obtener errores estándar)
+S_learner.fit(yTrain_k, tTrain_k, X=xTrain_k, inference="bootstrap")
+
+# Estimamos efectos tratamiento sobre datos de prueba
+S_te = S_learner.effect(xTest_k)
+
+# Histograma de TEs (sar seaborn)
+plt.figure(figsize=(8, 6))  # Opcional: Define el tamaño de la figura
+plt.hist(S_te, bins=30, color='blue', alpha=0.7)
+plt.title('Histograma de efectos de tratamiento estimados')
+plt.xlabel('Efecto de tratamiento')
+plt.ylabel('Frecuencia')
+plt.show()
 ```
 
 
 
-```{r}
-# msot
-```
+
 
 
 
