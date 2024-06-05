@@ -357,28 +357,8 @@ nota <- data.frame(
 nota <- nota[complete.cases(nota), ]
 ```
 
-
 Notas por cuartiles, análisis de densidad para averiguar si se distribuyen de forma gaussiana o distinta
 
-```{r}
-plot(x)
-
-nota1_per <- round((nota1 - min(nota1, na.rm = TRUE)) / (max(nota1, na.rm = TRUE) - min(nota1, na.rm = TRUE)) * 100, 0)
-x <- density(nota1_per, na.rm = TRUE)
-
-plot(x)
-
-nota2_per <- round((nota2 - min(nota2, na.rm = TRUE)) / (max(nota2, na.rm = TRUE) - min(nota2, na.rm = TRUE)) * 100, 0)
-x <- density(nota2_per, na.rm = TRUE)
-
-plot(x)
-
-nota3_per <- round((nota3 - min(nota3, na.rm = TRUE)) / (max(nota3, na.rm = TRUE) - min(nota3, na.rm = TRUE)) * 100, 0)
-x <- density(nota3_per, na.rm = TRUE)
-
-plot(x)
-
-```
 ```{r}
 # Función para convertir datos a índices de cuartiles
 convertir_a_cuartiles <- function(datos) {
@@ -570,33 +550,6 @@ Star3Df_encoded_no_cat <- Star3Df_encoded |>  select(!c(
 ))
 ```
 
-
-```{r}
-StarkDf_encoded_grouped <- StarkDf_encoded %>%
-  mutate(across(.cols = c(systemk, schoolidk), .fns = as.numeric)) %>%
-  group_by(stark) %>%
-  select(-c(lunchk, schoolk, degreek, ladderk, tethnicityk, genderk, ethnicityk, birthk))%>%
-  summarise_all(mean)
-
-Star1Df_encoded_grouped <- Star1Df_encoded %>%
-  mutate(across(.cols = c(system1, schoolid1), .fns = as.numeric)) %>%
-  group_by(star1) %>%
-  select(-c(lunch1, school1, degree1, ladder1, tethnicity1, gender1, ethnicity1, birth1))%>%
-  summarise_all(mean)
-
-Star2Df_encoded_grouped <- Star2Df_encoded %>%
-  mutate(across(.cols = c(system2, schoolid2), .fns = as.numeric)) %>%
-  group_by(star2) %>%
-  select(-c(lunch2, school2, degree2, ladder2, tethnicity2, gender2, ethnicity2, birth2))%>%
-  summarise_all(mean)
-
-Star3Df_encoded_grouped <- Star3Df_encoded %>%
-  mutate(across(.cols = c(system3, schoolid3), .fns = as.numeric)) %>%
-  group_by(star3) %>%
-  select(-c(lunch3, school3, degree3, ladder3, tethnicity3, gender3, ethnicity3, birth3))%>%
-  summarise_all(mean)
-```
-
 ```{r}
 
 # Eliminamos regular+aide analisis del tratamiento binario
@@ -608,24 +561,9 @@ Star3Df_encoded_w_a <- Star3Df_encoded_no_cat %>% filter(star3 != "regular+aide"
 
 
 ```{r}
-first_lm <- lm(notak_per ~ stark,data = starDf)
-summary(first_lm)
-second_lm <- lm(nota1_per ~ star1,data = starDf)
-summary(second_lm)
-third_lm <- lm(nota2_per ~ star2,data = starDf)
-summary(third_lm)
-fourth_lm <- lm(nota3_per ~ star3 ,data = starDf)
-summary(fourth_lm)
-```
-
-```{r}
 # La mayoria de los estudiante caucasicos son rurales
 
 starDf|> select(ethnicity,school1,school2,school3,schoolk)|> filter(schoolk == 'rural') |> count(ethnicity)
-```
-
-```{r}
-starDf|> select(ethnicity,school1,school2,school3,schoolk,stark,star1,star2,star3)|> filter(stark == "small") |> count(schoolk)
 ```
 
 # EFECTOS HETEROGENEOS
@@ -633,171 +571,17 @@ starDf|> select(ethnicity,school1,school2,school3,schoolk,stark,star1,star2,star
 ```{r}
 library(reticulate)
 use_condaenv('inferencia')
-rpy2py <- r_to_py(Star3Df_encoded_w_a)
 ```
 
 ```{python}
 from doubleml import DoubleMLData
-```
-
-```{python}
 import pandas as pd
 import numpy as np
-
-# Create a pandas DataFrame from the R data frame
-rpy2py_df = pd.DataFrame(r.rpy2py)
-x_cols = ['experience3','lunch3_free','school3_inner-city','gender3_female','ethnicity3_grouped_cauc']
-# Define the DoubleMLData object
-dml_data = DoubleMLData(rpy2py_df,
-                        y_col='nota3',
-                        d_cols='star3',
-                        x_cols=x_cols)
-```
-
-```{python}
-dml_data
-```
-
-
-```{python}
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-
-ml_m_rf = RandomForestRegressor()  # media condicional de la respuesta
-ml_e_rf = RandomForestClassifier() # propensity score 
-
 from xgboost import XGBClassifier, XGBRegressor
-
-ml_m_xgb = XGBRegressor(objective = "reg:squarederror")
-
-
-ml_e_xgb = XGBClassifier(use_label_encoder = False ,
-                         objective = "binary:logistic",
-                         eval_metric = "logloss")
-```
-
-```{python}
 from doubleml import DoubleMLPLR
-```
-
-```{python}
-
-np.random.seed(123)
-dml_plr_forest = DoubleMLPLR(dml_data,
-                             ml_l = ml_m_rf, # modelo ML para media condicional de respuesta
-                             ml_m = ml_e_rf, # modelo ML para propensity score
-                             n_folds = 10)
-
-```
-
-```{python}
-dml_plr_xgb = DoubleMLPLR(dml_data,
-                             ml_l = ml_m_xgb,
-                             ml_m = ml_e_xgb,
-                             n_folds = 10)
-```
-
-```{python}
-dml_plr_forest.fit()
-dml_plr_xgb.fit()
-```
-
-
-```{python}
-dml_plr_forest.summary
-print(dml_plr_forest)
-```
-```{python}
-dml_plr_xgb.summary
-print(dml_plr_xgb)
-```
-```{python}
-dml_plr_forest.evaluate_learners()
-```
-```{python}
-dml_plr_xgb.evaluate_learners()
-```
-
-```{python}
-dml_plr_xgb.evaluate_learners()
-
+import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error
-def mae(y_true, y_pred):
-    subset = np.logical_not(np.isnan(y_true))
-    return mean_absolute_error(y_true[subset], y_pred[subset])
-
-dml_plr_forest.evaluate_learners(metric=mae)
-```
-
-```{python}
-plr_summary = pd.concat((dml_plr_xgb.summary,
-                         dml_plr_forest.summary))
-plr_summary.index = ['xgb', 'Forest']
-plr_summary[['coef', '2.5 %', '97.5 %']]
-```
-
-```{python}
-import matplotlib.pyplot as plt
-errors = np.full((2, plr_summary.shape[0]), np.nan)
-errors[0, :] = plr_summary['coef'] - plr_summary['2.5 %']
-errors[1, :] = plr_summary['97.5 %'] - plr_summary['coef']
-plt.errorbar(plr_summary.index, plr_summary.coef, fmt='o', yerr=errors)
-plt.axhline(y=0, color='gray')
-plt.ylim([0, 20])
-
-plt.title('Modelo PLR')
-plt.xlabel('Método ML')
-_ =  plt.ylabel('Coeficientes y 95%-IC')
-plt.show()
-```
-
-```{python}
-grupos = pd.DataFrame(
-    np.column_stack((rpy2py_df['ethnicity3_grouped_cauc'] == 1,
-                     (rpy2py_df['ethnicity3_grouped_cauc'] == 0))),
-                     
-    columns=['Grupo 1', 'Grupo 2'])
-print(grupos.head())
-```
-
-```{python}
-gate = dml_plr_forest.gate(groups = grupos)
-print(gate.confint(level = 0.95))
-ci = gate.confint(level=0.95, joint=True)
-```
-
-```{python}
-import matplotlib.pyplot as plt
-plt.rcParams['figure.figsize'] = 10., 7.5
-
-errors = np.full((2, ci.shape[0]), np.nan)
-errors[0, :] = ci['effect'] - ci['2.5 %']
-errors[1, :] = ci['97.5 %'] - ci['effect']
-
-plt.errorbar(ci.index, ci.effect, fmt='o', yerr=errors, label='Efecto estimado (IC conjunto)')
-plt.ylim(-15,30)
-plt.title('GATEs')
-plt.xlabel('Grupos')
-plt.legend()
-_ = plt.ylabel('Effect and 95%-CI')
-plt.show()
-```
-
-
-```{python}
-print(gate.summary)
-```
-```{python}
-dml_plr_xgb.sensitivity_analysis()
-print(dml_plr_xgb.sensitivity_summary)
-```
-
-```{python}
-dml_plr_xgb.sensitivity_analysis(cf_y=0.1,cf_d=0.1)
-print(dml_plr_xgb.sensitivity_summary)
-```
-
-```{python}
-dml_plr_xgb.sensitivity_benchmark(benchmarking_set=["gender3_female"])
 ```
 
 *Paso todo a una función para que sea más fácil iterar ! (Al final es lo que se quedará)*
@@ -891,11 +675,8 @@ Star2Df_encoded_w_a <- r_to_py(Star2Df_encoded_w_a)
 Star3Df_encoded_w_a <- r_to_py(Star3Df_encoded_w_a)
 # Create a pandas DataFrame from the R data frame
 StarkDf_encoded_w_a = pd.DataFrame(r.StarkDf_encoded_w_a)
-# Create a pandas DataFrame from the R data frame
 Star1Df_encoded_w_a = pd.DataFrame(r.Star1Df_encoded_w_a)
-# Create a pandas DataFrame from the R data frame
 Star2Df_encoded_w_a = pd.DataFrame(r.Star2Df_encoded_w_a)
-# Create a pandas DataFrame from the R data frame
 Star3Df_encoded_w_a = pd.DataFrame(r.Star3Df_encoded_w_a)
 
 grupos_k = pd.DataFrame(
