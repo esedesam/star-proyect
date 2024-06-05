@@ -330,11 +330,12 @@ plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = F
 plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
 ```
 
+
 ### Identificación de efecto y tratamiento
 
 En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, consideramos sólo el tratamiento de clase reducida frente a clase normal.
 
-Por otra parte, escogemos como variable de respuesta una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
+Por otra parte, escogemos como variable de respuesta una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio. También definimos las nuevas variables **birth_year** y **birth_quantile**, a partir de la variable **birth**, que es una variable de tipo yearqtl, y la convertimos en una vaariable con el año de nacimiento de tipo numérico y otra con el cuatrimeste de nacimiento, de tipo facto, para así poder compararlas don otras variables numéricas y de tipo factor.
 
 Además, realizamos el análisis del efecto del tratamiento de manera independiente para cada curso escolar.
 
@@ -344,10 +345,11 @@ starDf <- starDf %>%
     notak = readk + mathk,
     nota1 = read1 + math1,
     nota2 = read2 + math2,
-    nota3 = read3 + math3
+    nota3 = read3 + math3,
+    birth_year = as.numeric(format(starDf$birth, "%Y")),
+    birth_quantile = as.factor(format(starDf$birth, "%q"))
   )
 ```
-
 
 ```{r}
 nota <- data.frame(
@@ -365,11 +367,170 @@ nota <- data.frame(
 nota <- nota[complete.cases(nota), ]
 ```
 
+A continuación se calculan las correlaciones entre las variables numéricas disponibles para cada curso escolar.
+
+```{r}
+cor(starDfk[, c("notak", "experiencek", "birth_year")], use = "complete.obs")
+cor(starDf1[, c("nota1", "experience1", "birth_year")], use = "complete.obs")
+cor(starDf2[, c("nota2", "experience2", "birth_year")], use = "complete.obs")
+cor(starDf3[, c("nota3", "experience3", "birth_year")], use = "complete.obs")
+```
+
+Como esperaríamos, no hay una correlación alta entre el año de nacimiento y la nota obtenida en ningún curso. Tampoco parece haber una correlación entre los años de experiencia de los maestros y la nota obtenida por los alumnos. Por otro lado, como es lógico, tampoco hay una correlación entre los años de experiencia de los maestro y los años de nacimiento de los alumnos.
+
+A continuación analizamos posiblles asociaciones entre variables categóricas para cada curso mediante el estadístico V de Cramer, que está acotado entre 0 y 1, siendo 1 asociación total entre un par de variables categóricas y 0 ninguna asociación. 
+
+```{r}
+# Función para calcular V de Cramer
+cramer_v <- function(x, y) {
+  tbl <- table(x, y, useNA = "no")
+  chi2 <- chisq.test(tbl)$statistic
+  n <- sum(tbl)
+  min_dim <- min(dim(tbl)) - 1
+  v <- sqrt(chi2 / (n * min_dim))
+  return(v)
+}
+```
+
+```{r}
+# Seleccionar solo las columnas categóricas
+categorical_vars <- starDfk[,c("stark", "gender", "birth_quantile", "lunchk", "schoolk", "degreek", "ladderk", "tethnicityk", "systemk")]
+var_names <- colnames(categorical_vars)
+
+# Crear una matriz para almacenar los coeficientes V de Cramer
+n <- length(var_names)
+cramer_matrix <- matrix(NA, n, n, dimnames = list(var_names, var_names))
+
+# Calcular V de Cramer para cada par de variables categóricas
+for (i in 1:(n-1)) {
+  for (j in (i+1):n) {
+    cramer_matrix[i, j] <- cramer_v(categorical_vars[[i]], categorical_vars[[j]])
+    cramer_matrix[j, i] <- cramer_matrix[i, j]
+  }
+}
+
+# Mostrar la matriz de coeficientes V de Cramer
+print(cramer_matrix)
+```
+
+```{r}
+# Seleccionar solo las columnas categóricas
+categorical_vars <- starDf1[,c("star1", "gender", "birth_quantile", "lunch1", "school1", "degree1", "ladder1", "tethnicity1", "system1")]
+var_names <- colnames(categorical_vars)
+
+# Crear una matriz para almacenar los coeficientes V de Cramer
+n <- length(var_names)
+cramer_matrix <- matrix(NA, n, n, dimnames = list(var_names, var_names))
+
+# Calcular V de Cramer para cada par de variables categóricas
+for (i in 1:(n-1)) {
+  for (j in (i+1):n) {
+    cramer_matrix[i, j] <- cramer_v(categorical_vars[[i]], categorical_vars[[j]])
+    cramer_matrix[j, i] <- cramer_matrix[i, j]
+  }
+}
+
+# Mostrar la matriz de coeficientes V de Cramer
+print(cramer_matrix)
+```
+
+```{r}
+# Seleccionar solo las columnas categóricas
+categorical_vars <- starDf2[,c("star2", "gender", "birth_quantile", "lunch2", "school2", "degree2", "ladder2", "tethnicity2", "system2")]
+var_names <- colnames(categorical_vars)
+
+# Crear una matriz para almacenar los coeficientes V de Cramer
+n <- length(var_names)
+cramer_matrix <- matrix(NA, n, n, dimnames = list(var_names, var_names))
+
+# Calcular V de Cramer para cada par de variables categóricas
+for (i in 1:(n-1)) {
+  for (j in (i+1):n) {
+    cramer_matrix[i, j] <- cramer_v(categorical_vars[[i]], categorical_vars[[j]])
+    cramer_matrix[j, i] <- cramer_matrix[i, j]
+  }
+}
+
+# Mostrar la matriz de coeficientes V de Cramer
+print(cramer_matrix)
+```
+
+```{r}
+# Seleccionar solo las columnas categóricas
+categorical_vars <- starDf3[,c("star3", "gender", "birth_quantile", "lunch3", "school3", "degree3", "ladder3", "tethnicity3", "system3")]
+var_names <- colnames(categorical_vars)
+
+# Crear una matriz para almacenar los coeficientes V de Cramer
+n <- length(var_names)
+cramer_matrix <- matrix(NA, n, n, dimnames = list(var_names, var_names))
+
+# Calcular V de Cramer para cada par de variables categóricas
+for (i in 1:(n-1)) {
+  for (j in (i+1):n) {
+    cramer_matrix[i, j] <- cramer_v(categorical_vars[[i]], categorical_vars[[j]])
+    cramer_matrix[j, i] <- cramer_matrix[i, j]
+  }
+}
+
+# Mostrar la matriz de coeficientes V de Cramer
+print(cramer_matrix)
+```
+
+
+No se observa ninguna asociación fuerte entre el tratamiento y el resto de variables categóricas, lo cuál está en concordancia con la asignación aleatoria del tratamiento. Donde sí observamos una mayor asociación es entre el tipo de escuela **school** y otras variables como **lunch**, lo cuál tiene sentido porque en el estudio se menciona que, la categoría de **schools** "inner-city" se asignó para las escuelas donde los alumnos recibían descuentos en la comida o comidas gratis. También observamos una cierta asociación con **tethnicity**, lo cuál llama más la atención teniendo en cuenta que en teoría la asignación de los profesores a las escuelas también era aleatoria. Esto nos hace sospechar de que quizá pudo haberse saltado el procedimiento en algún caso. La alta asociación entre **school** y **system** se explica porque debido a que escuelas del mismo tipo pueden pertenecer al mismo sistema escolar.
+
+También observamos más asociaciones de la variable **system** con la variable con otras como **lunch**, en cuyo caso el orígen de la asociación sería el mismo que para **svhool**, pero también vemos una asociación con el grado de estudios de los profesores (**degree**) y su nivel de escala profesioneal (**ladder**), así como su etnia (**teychnicity**), lo que de nuevo mos hace sospechar de la asignación aleatoria de los profesores.
+
+
+Con la finalidad de diseñar un modelo causal, a continuación vamos a comprobar qué variables son más relevantes en un modelo de regresión lineal que prediga la respuesta al tratamiento, ya que las variables más relevantes pueden ser candidatas a variables confusoras del modelo causal, o explicar parte de la variabilidad de la respuesta.
+
+Para determinar si estas variables son significativas en la predicción, realizaremos un test t-Student sobre cada uno de los coeficientes de la regresión. Puesto que vamos a realizar un análisis independiente para cada curso escolar, planteamos cuatro modelos distintos, uno para cada curso, donde tanto las variables como la respuesta seleccionadas se corresponden a su curso correspondiente.
+
+```{r}
+lmk <- lm(notak ~ stark + gender + ethnicity + birth + lunchk + schoolk + degreek + ladderk + experiencek + tethnicityk + systemk + schoolidk, data=starDfk, na.action=na.exclude)
+summary(lmk)
+```
+
+```{r}
+lm1 <- lm(nota1 ~ star1 + gender + ethnicity + birth + lunch1 + school1 + degree1 + ladder1 + experience1 + tethnicity1 + system1 + schoolid1, data=starDf1, na.action=na.exclude)
+summary(lm1)
+```
+
+```{r}
+lm2 <- lm(nota2 ~ star2 + gender + ethnicity + birth + lunch2 + school2 + degree2 + ladder2 + experience2 + tethnicity2 + system2 + schoolid2, data=starDf2, na.action=na.exclude)
+summary(lm2)
+```
+
+```{r}
+lm3 <- lm(nota3 ~ star3 + gender + ethnicity + birth + lunch3 + school3 + degree3 + ladder3 + experience3 + tethnicity3 + system3 + schoolid3, data=starDf3, na.action=na.exclude)
+summary(lm3)
+```
+
+Algunos factores importantes que influencian la respuesta en todos los cursos son el género de los alumnos, el hecho de que estos fueran de etnia afroamericana o que dispusieran de comidas gratis y el tipo de escuela (especialmente si es urbana o suburbana). También parece haber influencia de determinadas escuelas (**schoolid**) en la respuesta, lo cuál puede ser indicativo de la influencia de variables no observadas.
+
+Por tanto, tras este análisis y tras contrastar con otros análisis externos como el realizado en https://www.econometrics-with-r.org/13.3-experimental-estimates-of-the-effect-of-class-size-reductions.html, tomamos como posibles variables de confusión:
+
+- **gender**
+- **ethnicity**
+- **lunch**
+- **school**
+
+```{r}
+library(ggdag)
+
+dag <- dagify(star~gender+ethnnicity+lunch+school,
+              nota~star+gender+ethnnicity+lunch+school,
+              exposure = "star", outcome = "nota")
+
+ggdag(dag)
+```
+
+
 ## Estimación naive del efecto del tratamiento
 
 Para obtener una primera estimación del efecto medio del tratamiento (AET) para cada curso podemos emplear el estimador diferencia en medias (DIM), definido como el valor promedio de la respuesta de los tratados menos el valor promedio de la respuesta para los no tratados. En ausencia de independencia, independencia condicional o asigación aleatoria del tratamiento, este es un estimador sesgado y es distinto al efecto medio del tratamiento.
 
-Según la documentación del estudio, tanto la asignación de alumnos como de profesores fue totalmente aleatoria, por lo que podemos tomar el DIM como una primera estimación válida del AET con la que comparar el resto de estimaciones que realizaremos más adelante.
+Según la documentación del estudio, tanto la asignación de alumnos como de profesores fue totalmente aleatoria, por lo que podemos tomar el DIM como una primera estimación válida del AET con la que comparar el resto de estimaciones que realizaremos más adelante, considerando ya variables de confusión.
 
 ```{r}
 starDfk <- starDf %>% filter(stark != "regular+aide") %>% mutate(stark = ifelse(stark == "small", 1, 0))
@@ -386,10 +547,10 @@ dim2 <- mean(starDf2[starDf2$star2==1, "nota2"], na.rm = T) - mean(starDf2[starD
 dim3 <- mean(starDf3[starDf3$star3==1, "nota3"], na.rm = T) - mean(starDf3[starDf3$star3==0, "nota3"], na.rm=T)
 
 data.frame(
-  curso = c("k", "1", "2", "3"),
-  dim = c(dimk, dim1, dim2, dim3)
+  Curso = c("k", "1", "2", "3"),
+  DIM = c(dimk, dim1, dim2, dim3)
 )
 ```
 
-De este primer resultado cabe destacar que el curso para el que el efecto del tratamiento es menor es el de guardería, seguido por tercero, luego segundo y a bastante diferenecia primero. Esta diferencia, no obstante, podría deberse a una mera casualidad como que los alumnos de la clase normal tuvieran unas notas muy pobres derante un año. En cualquier caso, observamos una estimación del efecto medio positiva para alumnos de todos los cursos.
+De este primer resultado cabe destacar que el curso para el que el efecto del tratamiento es menor es el de guardería, seguido por tercero, luego segundo y a bastante diferenecia primero. Esta diferencia, no obstante, podría deberse a una mera casualidad como que los alumnos de la clase normal tuvieran unas notas muy pobres durante un año. En cualquier caso, observamos una estimación del efecto medio positiva para alumnos de todos los cursos.
 
