@@ -645,8 +645,12 @@ kable(summaryBasicModel, caption = capTab("Estimaciones de efecto del tratamient
 La diferencia que otorga estar en la clase reducida está en torno al 0.2 de desviación estándar en incremento de rendimiento, a excepción de lo ocurrido en el curso 1, por lo comentado anteriormente.
 
 ```{r dfSaving}
-# Guardar starDf como csv para luego cargarlo en Python
-write.csv(starDf, "./data/starDf.csv", row.names = FALSE)
+# Guardar starDf como csv para luego cargarlo en Python. Si no existe la carpeta data, crearla
+if (!dir.exists("data")) {
+  dir.create("data")
+}
+
+write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
 ## Uso de Meta-Learners
