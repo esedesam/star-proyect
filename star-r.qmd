@@ -36,7 +36,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally)
 
 # Ajustes adicionales
 theme_set(
@@ -382,6 +382,26 @@ starDf %>%
 ```
 Puede verse claramente cómo los afroamericanos tenían mayor disposición a tener almuerzo gratuito. Esto seguramente se deba a su condición económica más vulnerable.
 
+Podemos observar también a continuación algunos mapas de correlaciones entre variables.
+
+```{r}
+starDf %>%
+  select(readk, mathk, experiencek) %>%
+  ggpairs()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Identificación de efecto y tratamiento
 
 En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
@@ -407,6 +427,7 @@ starDf %>%
   facet_wrap(~treatment) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
 Vemos que las distribuciones de género son muy similares para los distintos tratamientos.
 
 
@@ -439,6 +460,7 @@ starDf %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
+
 En este caso observamos una diferencia apreciable: la experiencia de los maestros en las clases reducidas suele ser menor.
 
 ```{r school-by-treatment, fig.cap=capFig("Diagrama de barras del tipo de escuela por tratamiento.", y = "school-by-treatment")}
@@ -457,13 +479,38 @@ Las distribuciones de tipo de escuela según los distintos tratamientos también
 
 # Análisis del efecto del tratamiento
 
-Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso.
+Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso. Además, calcularemos el percentil de esta variable para cada curso.
 
 ```{r mark-variables}
+#convertir_a_cuartiles <- function(datos) {
+#  cuartiles <- quantile(datos, probs = seq(0, 1, by = 0.01), na.rm = TRUE)
+#  cuartiles <- unique(cuartiles)
+  
+  # Si hay menos de 5 límites únicos, añadir una pequeña cantidad para hacerlos únicos
+#  if (length(cuartiles) < 5) {
+#    cuartiles <- sort(unique(c(cuartiles, cuartiles + 1e-10 * (1:length(cuartiles)))))
+#  }
+  
+#  as.numeric(cut(datos, breaks = cuartiles, include.lowest = TRUE))
+#}
+
 starDf$markK <- starDf$readk + starDf$mathk
 starDf$mark1 <- starDf$read1 + starDf$math1
 starDf$mark2 <- starDf$read2 + starDf$math2
 starDf$mark3 <- starDf$read3 + starDf$math3
+
+# Convertir las puntuaciones a índices de percentiles usando convertir_a_cuartiles
+#starDf$markPerck <- convertir_a_cuartiles(starDf$markK)
+#starDf$markPerc1 <- convertir_a_cuartiles(starDf$mark1)
+#starDf$markPerc2 <- convertir_a_cuartiles(starDf$mark2)
+#starDf$markPerc3 <- convertir_a_cuartiles(starDf$mark3)
+
+# Convertir las puntuaciones a índices de percentiles usando ecdf (empirical cumulative distribution function)
+
+starDf$markPerck <- round(ecdf(starDf$markK)(starDf$markK) * 100, 1)
+starDf$markPerc1 <- round(ecdf(starDf$mark1)(starDf$mark1) * 100, 1)
+starDf$markPerc2 <- round(ecdf(starDf$mark2)(starDf$mark2) * 100, 1)
+starDf$markPerc3 <- round(ecdf(starDf$mark3)(starDf$mark3) * 100, 1)
 ```
 
 
@@ -707,7 +754,7 @@ write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ## Uso de Meta-Learners
 
 
-```{python }
+```{python libraryLoading}
 # importamos metalearners
 from econml.metalearners import TLearner, SLearner, XLearner
 from econml.dr import DRLearner
@@ -732,7 +779,7 @@ import os
 import shap
 ```
 
-```{python}
+```{python seed}
 seed = 666
 ```
 
@@ -740,12 +787,8 @@ seed = 666
 starDf = pd.read_csv("./data/starDf.csv")
 ```
 
-```{python}
-# Necesito poner las notas por cuartiles
 
-```
-
-```{python}
+```{python dfPreprocessing}
 def preprocess_data(df, star_column, experience_column, school_column, lunch_column, ethnicity_column, mark_column):# schoolid_column
     
     # Seleccionar columnas relevantes y eliminar filas con valores faltantes
@@ -778,7 +821,7 @@ def preprocess_data(df, star_column, experience_column, school_column, lunch_col
     return df_processed
 ```
 
-```{python}
+```{python dfPreprocessingCalls}
 starDf_k = preprocess_data(starDf, "stark", "experiencek", "schoolk", "lunchk", "ethnicity_grouped", "markK") # schoolidk no se mete puesto que mete mucho error
 starDf_1 = preprocess_data(starDf, "star1", "experience1", "school1", "lunch1", "ethnicity_grouped", "mark1")
 starDf_2 = preprocess_data(starDf, "star2", "experience2", "school2", "lunch2", "ethnicity_grouped", "mark2")
@@ -786,7 +829,7 @@ starDf_3 = preprocess_data(starDf, "star3", "experience3", "school3", "lunch3", 
 ```
 
 
-```{python}
+```{python dfSplittingforModels}
 Yk = starDf_k["markK"].values
 Xk = starDf_k.drop(columns=["markK", "stark"])
 Tk = starDf_k["stark"].values
@@ -804,17 +847,17 @@ X3 = starDf_3.drop(columns=["mark3", "star3"])
 T3 = starDf_3["star3"].values
 ```
 
-```{python}
+```{python }
 print(Tk.mean(), T1.mean(), T2.mean(), T3.mean())
 ```
 
 
-```{python}
+```{python trainTestSplit}
 xTrain_k, xTest_k, tTrain_k, tTest_k, yTrain_k, yTest_k = train_test_split(Xk, Tk, Yk, test_size=0.2, random_state=seed)
 ```
 
 
-```{python}
+```{python }
 # respuesta-tratamiento
 y0 = yTrain_k[tTrain_k==0]
 y1 = yTrain_k[tTrain_k==1]
@@ -915,13 +958,16 @@ if not os.path.exists("./images"):
     
 plt.savefig("./images/wfallSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
+
 ![Test](./images/waterfall_plot.png)
+
 ```{python}
 plt.figure(figsize=(20, 8))
 shap.plots.bar(shap_values['Y0']['T0_1.0'], show = False)
 
 plt.savefig("./images/barSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
+
 ![Testing](./images/barSLearner_k.png)
 
 
@@ -1082,6 +1128,11 @@ ml_m_xgb = XGBRegressor(objective="reg:squarederror", random_state=seed)
 ml_e_xgb = XGBClassifier(use_label_encoder=False, objective="binary:logistic", eval_metric="logloss", random_state=seed)
 ```
 
+### Group Average Treatment Effects (GATEs)
+
+**Efecto del tratamiento por etnia**
+
+
 ```{python}
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['ethnicity_grouped'] == 1, starDf_k['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['ethnicity_grouped'] == 1, starDf_1['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
@@ -1134,9 +1185,115 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            n_folds=10)
 ```
 
+**Efecto del tratamiento por género**
+
+```{python}
+grupos_k = pd.DataFrame(np.column_stack((starDf_k['gender'] == 1, starDf_k['gender'] == 0)), columns=['female', 'male'])
+grupos_1 = pd.DataFrame(np.column_stack((starDf_1['gender'] == 1, starDf_1['gender'] == 0)), columns=['female', 'male'])
+grupos_2 = pd.DataFrame(np.column_stack((starDf_2['gender'] == 1, starDf_2['gender'] == 0)), columns=['female', 'male'])
+grupos_3 = pd.DataFrame(np.column_stack((starDf_3['gender'] == 1, starDf_3['gender'] == 0)), columns=['female', 'male'])
+
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
+                                           y_col='markK',
+                                           d_cols='stark',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_k,
+                                           curso = "Kindergarten",
+                                           n_folds=10)
+
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
+                                           y_col='mark1',
+                                           d_cols='star1',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_1,
+                                           curso = "1st Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
+                                           y_col='mark2',
+                                           d_cols='star2',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_2,
+                                           curso = "2nd Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
+                                           y_col='mark3',
+                                           d_cols='star3',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_3,
+                                           curso = "3rd Grade",
+                                           n_folds=10)
+```
+**Efecto del tratamiento por tipo de escuela**
+
+```{python}
+# Hay 4 grupos, 'inner-city', 'suburban', 'rural', 'urban'
+grupos_k = pd.DataFrame(np.column_stack((starDf_k['schoolk_inner-city'] == 1, starDf_k['schoolk_suburban'] == 1, starDf_k['schoolk_rural'] == 1, starDf_k['schoolk_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
+grupos_1 = pd.DataFrame(np.column_stack((starDf_1['school1_inner-city'] == 1, starDf_1['school1_suburban'] == 1, starDf_1['school1_rural'] == 1, starDf_1['school1_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
+grupos_2 = pd.DataFrame(np.column_stack((starDf_2['school2_inner-city'] == 1, starDf_2['school2_suburban'] == 1, starDf_2['school2_rural'] == 1, starDf_2['school2_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
+
+grupos_3 = pd.DataFrame(np.column_stack((starDf_3['school3_inner-city'] == 1, starDf_3['school3_suburban'] == 1, starDf_3['school3_rural'] == 1, starDf_3['school3_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
+
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
+                                           y_col='markK',
+                                           d_cols='stark',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_k,
+                                           curso = "Kindergarten",
+                                           n_folds=10)
+
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
+                                           y_col='mark1',
+                                           d_cols='star1',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_1,
+                                           curso = "1st Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
+                                           y_col='mark2',
+                                           d_cols='star2',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_2,
+                                           curso = "2nd Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
+                                           y_col='mark3',
+                                           d_cols='star3',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=grupos_3,
+                                           curso = "3rd Grade",
+                                           n_folds=10)
 
 
-
+```
+uy uy, qué mal pinta el urban
 
 
 *Discutir resultados observados* Para Kindergarten se ve claramente que el efecto es muy superior para los no caucásicos (tal y como se mencionó en el artículo que pasó Jesús :D.)
