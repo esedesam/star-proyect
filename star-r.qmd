@@ -36,7 +36,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, fastDummies, MatchIt)
 
 # Ajustes adicionales
 theme_set(
@@ -84,20 +84,22 @@ plotCombinedFeature <- function(starDf, featureId, featureLabel = NA, isNumeric 
 
 # Numerización automática en tablas y figuras
 
+outputFormat   = opts_knit$get("rmarkdown.pandoc.to")
 
-capTabNo <- 2 
-capFigNo <- 1
+capTabNo = 2; capFigNo = 1;
 
-capTab <- function(x){
-  x <- paste0("<strong>Tabla ", capTabNo,". </strong> ", x)
-  capTabNo <<- capTabNo + 1
-  x
+capTab = function(x){
+  if(outputFormat == 'html'){
+    x = paste0("<strong>Table ", capTabNo,". </strong> ",x)
+    capTabNo <<- capTabNo + 1
+  }; x
 }
 
-capFig <- function(x, y){
-  x <- paste0("<strong>Figura ", capFigNo, ".</strong> ", x, " \\label{fig:", y, "}")
-  capFigNo <<- capFigNo + 1
-  x
+capFig = function(x, y){
+  if(outputFormat == 'html'){
+    x = paste0("<strong>Figura ", capFigNo, ".</strong> ", x, " \\label{fig:", y, "}")
+    capFigNo <<- capFigNo + 1
+  }; x
 }
 ```
 
@@ -105,7 +107,7 @@ capFig <- function(x, y){
 
 El proyecto *STAR* (*Student-Teacher Achievement Ratio*) es un estudio sobre el tamaño de las clases llevado a cabo en Tennessee en tres fases, diseñado para determinar el efecto del **tamaño reducido de las clases** en los primeros grados sobre el **rendimiento académico** a corto y largo plazo de los alumnos. Se inspiró en un estudio prometedor realizado en Indiana sobre los beneficios de las clases pequeñas, pero también consideró los costos adicionales de más aulas y profesores. La legislatura de Tennessee autorizó este estudio de **cuatro años** para obtener datos sobre la eficacia de las clases reducidas.
 
-Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante [pruebas estandarizadas](https://en.wikipedia.org/wiki/Stanford_Achievement_Test_Series). Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos. En cualquier año de calendario, el experimento se llevó a cabo en solo uno de los grados, minimizando así el número de clases necesitadas.
+Se compararon los resultados de alumnos en **jardines de infancia** y en los **primeros tres grados**, en clases pequeñas de **13 a 17 alumnos**, clases regulares de **22 a 25 alumnos** y clases regulares con un **profesor particular**. Aproximadamente 6500 alumnos en 330 aulas de unas 80 escuelas fueron evaluados en **lectura**, **matemáticas** y habilidades básicas de estudio mediante [pruebas estandarizadas](https://en.wikipedia.org/wiki/Stanford_Achievement_Test_Series). Después de los cuatro años, se comprobó que las clases pequeñas mejoraron significativamente el aprendizaje temprano y los estudios cognitivos.
 
 ```{r, groupsSTAR}
 groupsTable <- data.frame(
@@ -271,34 +273,19 @@ ggplot(starDf, aes(x = gender)) +
   labs(x = "Género", y = "Frecuencia acumulada")
 ```
 
+
 ```{r aed-etnicidad, fig.cap=capFig("Diagrama de barras de la etnicidad de los estudiantes.", y = "aed-etnicidad")}
 ggplot(starDf, aes(x = ethnicity)) +
   geom_bar() +
   labs(x = "Etnicidad", y = "Frecuencia acumulada")
 ```
 
+
 ```{r aed-trim-nac, fig.cap=capFig("Diagrama de barras del trimestre de nacimiento de los estudiantes.", y = "aed-trim-nac")}
 ggplot(starDf, aes(x = birth)) +
   geom_bar() +
   labs(x = "Trimestre de nacimiento", y = "Frecuencia acumulada")
 ```
-```{r aed-star, fig.cap=capFig("Diagrama de barras del tipo de clase STAR de los estudiantes.", y = "aed-star")}
-starDf %>%
-  summarise(
-    Kindergarden = sum(!is.na(stark)),
-    Primero = sum(!is.na(star1)),
-    Segundo = sum(!is.na(star2)),
-    Tercero = sum(!is.na(star3))
-  ) %>%
-  pivot_longer(cols = everything(), names_to = "Curso", values_to = "Observaciones") %>%
-  ggplot(aes(x = Curso, y = Observaciones, fill = Observaciones)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Curso", y = "Número de observaciones", fill = "Número de observaciones") +
-  scale_fill_gradient(low = "blue", high = "red")
-```
-
-
-
 
 ```{r aed-grupo, fig.cap=capFig("Diagrama de barras del grupo experimental de todos los cursos.", y = "aed-grupo")}
 plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
@@ -308,9 +295,11 @@ plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
 plotCombinedFeature(starDf, "read", "Puntuación de lectura")
 ```
 
+
 ```{r aed-mate, fig.cap=capFig("Boxplot de la puntuación de matemáticas de todos los cursos.", y = "aed-mate")}
 plotCombinedFeature(starDf, "math", "Puntuación de matemáticas")
 ```
+
 
 ```{r aed-almuerzo, fig.cap=capFig("Diagrama de barras de la participación en el almuerzo gratuito de todos los cursos.", y = "aed-almuerzo")}
 plotCombinedFeature(starDf, "lunch", "Almuerzo", isNumeric = FALSE)
@@ -340,16 +329,522 @@ plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = F
 plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
 ```
 
-## Identificación de efecto y tratamiento
+### Identificación de efecto y tratamiento
 
 En el proyecto *STAR*, el tratamiento aplicado es la pertenencia a clases reducidas y a clases normales con ayuda, frente a clases normales sin ayuda. En este trabajo, convertimos este tratamiento en dos tratamientos binarios:
 
--   Clase reducida frente a clase normal
--   Clase normal con ayuda frente a clase normal sin ayuda
+- Clase reducida frente a clase normal
+- Clase normal con ayuda frente a clase normal sin ayuda
 
-Por otra parte, escogemos como efecto la variación de una nueva variable **mark**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
+Por otra parte, escogemos como efecto la variación de una nueva variable **nota**, definida como la suma de las puntuaciones en lectura y matemáticas, habitual en la literatura relacionada con este estudio.
 
 Además, realizamos el análisis para cada año de manera independiente.
+
+```{r}
+nota <- data.frame(
+  # Kindergarten
+  notak <- starDf$readk + starDf$mathk,
+  # 1st Grade
+  nota1 <- starDf$read1 + starDf$math1,
+  # 2nd Grade
+  nota2 <- starDf$read2 + starDf$math2,
+  # 3rd Grade
+  nota3 <- starDf$read3 + starDf$math3
+)
+
+# Eliminar los registros con NA en cualquier variable 'nota'
+nota <- nota[complete.cases(nota), ]
+```
+
+Notas por cuartiles, análisis de densidad para averiguar si se distribuyen de forma gaussiana o distinta
+
+```{r}
+# Función para convertir datos a índices de cuartiles
+convertir_a_cuartiles <- function(datos) {
+  cuartiles <- quantile(datos, probs = seq(0, 1, by = 0.01), na.rm = TRUE)
+  cuartiles <- unique(cuartiles)
+
+# Si hay menos de 5 límites únicos, añadir una pequeña cantidad para hacerlos únicos
+if (length(cuartiles) < 5) {
+  cuartiles <- sort(unique(c(cuartiles, cuartiles + 1e-10 * (1:length(cuartiles)))))
+}
+  as.numeric(cut(datos, breaks = cuartiles, include.lowest = TRUE))
+}
+
+# Crear un vector de ejemplo
+
+# Convertir los datos a índices de cuartiles
+notak_per <- convertir_a_cuartiles(notak)
+x <- density(notak_per, na.rm = TRUE)
+
+plot(x)
+
+nota1_per <- convertir_a_cuartiles(nota1)
+x <- density(nota1_per, na.rm = TRUE)
+
+plot(x)
+
+nota2_per <- convertir_a_cuartiles(nota2)
+x <- density(nota2_per, na.rm = TRUE)
+
+plot(x)
+
+nota3_per <- convertir_a_cuartiles(nota3)
+x <- density(nota3_per, na.rm = TRUE)
+
+plot(x)
+
+starDf <-  starDf |> mutate(notak_per,nota1_per,nota2_per,nota3_per)
+```
+
+```{r}
+#Df para kindergarten
+StarkDf <- data.frame(
+  stark <- starDf$stark,
+  notak <- notak_per,
+  lunchk <- starDf$lunchk,
+  schoolk <- starDf$schoolk,
+  degreek <- starDf$degreek,
+  ladderk <- starDf$ladderk,
+  experiencek <- starDf$experiencek,
+  tethnicityk <- starDf$tethnicityk,
+  systemk <- starDf$systemk,
+  schoolidk <- starDf$schoolidk,
+  genderk <- starDf$gender,
+  ethnicityk <- starDf$ethnicity,
+  birthk <- starDf$birth
+)
+
+names(StarkDf) <- c(
+  "stark","notak", "lunchk", "schoolk", "degreek", "ladderk", "experiencek",
+  "tethnicityk", "systemk", "schoolidk", "genderk", "ethnicityk",
+  "birthk"
+)
+
+#Df para grade 1
+Star1Df <- data.frame(
+  star1 <- starDf$star1,
+  nota1 <- nota1_per,
+  lunch1 <- starDf$lunch1,
+  school1 <- starDf$school1,
+  degree1 <- starDf$degree1,
+  ladder1 <- starDf$ladder1,
+  experience1 <- starDf$experience1,
+  tethnicity1 <- starDf$tethnicity1,
+  system1 <- starDf$system1,
+  schoolid1 <- starDf$schoolid1,
+  gender1 <- starDf$gender,
+  ethnicity1 <- starDf$ethnicity,
+  birth1 <- starDf$birth
+)
+
+names(Star1Df) <- c(
+  "star1","nota1", "lunch1", "school1", "degree1", "ladder1", "experience1",
+  "tethnicity1", "system1", "schoolid1", "gender1", "ethnicity1",
+  "birth1"
+)
+
+#Df para grade 2
+Star2Df <- data.frame(
+  star2 <- starDf$star2,
+  nota2 <- nota2_per,
+  lunch2 <- starDf$lunch2,
+  school2 <- starDf$school2,
+  degree2 <- starDf$degree2,
+  ladder2 <- starDf$ladder2,
+  experience2 <- starDf$experience2,
+  tethnicity2 <- starDf$tethnicity2,
+  system2 <- starDf$system2,
+  schoolid2 <- starDf$schoolid2,
+  gender2 <- starDf$gender,
+  ethnicity2 <- starDf$ethnicity,
+  birth2 <- starDf$birth
+)
+
+names(Star2Df) <- c(
+  "star2","nota2", "lunch2", "school2", "degree2", "ladder2", "experience2",
+  "tethnicity2", "system2", "schoolid2", "gender2", "ethnicity2",
+  "birth2"
+)
+
+#Df para grade 3
+Star3Df <- data.frame(
+  star3 <- starDf$star3,
+  nota3 <- nota3_per,
+  lunch3 <- starDf$lunch3,
+  school3 <- starDf$school3,
+  degree3 <- starDf$degree3,
+  ladder3 <- starDf$ladder3,
+  experience3 <- starDf$experience3,
+  tethnicity3 <- starDf$tethnicity3,
+  system3 <- starDf$system3,
+  schoolid3 <- starDf$schoolid3,
+  gender3 <- starDf$gender,
+  ethnicity3 <- starDf$ethnicity,
+  birth3 <- starDf$birth
+)
+names(Star3Df) <- c(
+  "star3","nota3", "lunch3", "school3", "degree3", "ladder3", "experience3",
+  "tethnicity3", "system3", "schoolid3", "gender3", "ethnicity3",
+  "birth3"
+)
+StarkDf$ethnicityk_grouped <- ifelse(StarkDf$ethnicityk == "cauc", "cauc", "afam + other")
+Star1Df$ethnicity1_grouped <- ifelse(Star1Df$ethnicity1 == "cauc", "cauc", "afam + other")
+Star2Df$ethnicity2_grouped <- ifelse(Star2Df$ethnicity2 == "cauc", "cauc", "afam + other")
+Star3Df$ethnicity3_grouped <- ifelse(Star3Df$ethnicity3 == "cauc", "cauc", "afam + other")
+
+StarkDf <- StarkDf[complete.cases(StarkDf), ]
+Star1Df <- Star1Df[complete.cases(Star1Df), ]
+Star2Df <- Star2Df[complete.cases(Star2Df), ]
+Star3Df <- Star3Df[complete.cases(Star3Df), ]
+```
+
+One-hot-encoding para análisis con doubleML
+
+```{r}
+
+# Realizar One-hot encoding de todas las variables categóricas
+StarkDf_encoded <- dummy_cols(StarkDf, select_columns = c(
+  "lunchk", "schoolk", "degreek", "ladderk", 
+ "genderk", "ethnicityk_grouped"
+))
+
+Star1Df_encoded <- dummy_cols(Star1Df, select_columns = c(
+  "lunch1", "school1", "degree1", "ladder1", 
+   "gender1", "ethnicity1_grouped"
+))
+
+Star2Df_encoded <- dummy_cols(Star2Df, select_columns = c(
+  "lunch2", "school2", "degree2", "ladder2", 
+   "gender2", "ethnicity2_grouped"
+))
+
+Star3Df_encoded <- dummy_cols(Star3Df, select_columns = c(
+  "lunch3", "school3", "degree3", "ladder3", 
+  "gender3", "ethnicity3_grouped"
+))
+```
+
+Eliminar columnas no numéricas
+
+```{r}
+StarkDf_encoded_no_cat <- StarkDf_encoded |>  select(!c(
+  "lunchk","lunchk_non-free", "degreek_master+", "ladderk", "ladderk_level1",
+  "tethnicityk", "genderk","genderk_male", "ethnicityk_grouped","birthk","ethnicityk"
+))
+
+Star1Df_encoded_no_cat <- Star1Df_encoded |>  select(!c(
+  "lunch1","lunch1_non-free", "school1", "degree1", "degree1_phd", "ladder1",  "ladder1_level1",
+  "tethnicity1", "gender1","gender1_male", "ethnicity1","birth1","ethnicity1_grouped"
+))
+
+Star2Df_encoded_no_cat <- Star2Df_encoded |>  select(!c(
+  "lunch2","lunch2_non-free", "school2", "degree2", "ladder2", "gender2_male",
+  "tethnicity2", "gender2", "ethnicity2","birth2",  "ladder2_level1" , "degree2_phd","ethnicity2_grouped"
+))
+
+Star3Df_encoded_no_cat <- Star3Df_encoded |>  select(!c(
+  "lunch3", "school3", "degree3", "ladder3", "degree3_phd","ladder3_level1" ,"lunch3_non-free",
+  "tethnicity3", "gender3", "ethnicity3","birth3", "ethnicity3_grouped", "gender3_male",
+))
+```
+
+```{r}
+
+# Eliminamos regular+aide analisis del tratamiento binario
+StarkDf_encoded_w_a <- StarkDf_encoded_no_cat %>% filter(stark != "regular+aide") %>% mutate(stark = ifelse(stark == "small", 1, 0))
+Star1Df_encoded_w_a <- Star1Df_encoded_no_cat %>% filter(star1 != "regular+aide") %>% mutate(star1 = ifelse(star1 == "small", 1, 0))
+Star2Df_encoded_w_a <- Star2Df_encoded_no_cat %>% filter(star2 != "regular+aide") %>% mutate(star2 = ifelse(star2 == "small", 1, 0))
+Star3Df_encoded_w_a <- Star3Df_encoded_no_cat %>% filter(star3 != "regular+aide") %>% mutate(star3 = ifelse(star3 == "small", 1, 0))
+```
+
+
+```{r}
+# La mayoria de los estudiante caucasicos son rurales
+
+starDf|> select(ethnicity,school1,school2,school3,schoolk)|> filter(schoolk == 'rural') |> count(ethnicity)
+```
+
+# EFECTOS HETEROGENEOS
+
+```{r}
+library(reticulate)
+use_condaenv('inferencia')
+```
+
+```{python}
+from doubleml import DoubleMLData
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from xgboost import XGBClassifier, XGBRegressor
+from doubleml import DoubleMLPLR
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error
+```
+
+*Paso todo a una función para que sea más fácil iterar ! (Al final es lo que se quedará)*
+
+```{python}
+def run_dml_analysis(data, y_col, d_cols,x, grupos=None, curso=None, n_folds=10, show_summary=True):
+  
+    ml_m_rf = RandomForestRegressor()  # media condicional de la respuesta
+    ml_e_rf = RandomForestClassifier() # propensity score 
+    ml_m_xgb = XGBRegressor(objective = "reg:squarederror")
+    ml_e_xgb = XGBClassifier(use_label_encoder = False ,
+                         objective = "binary:logistic",
+                         eval_metric = "logloss")
+    x_cols = [f'experience{x}',f'lunch{x}_free',f'gender{x}_female',f'ethnicity{x}_grouped_cauc',
+    f'school{x}_inner-city',f'school{x}_rural',f'school{x}_urban']
+    # Definir datos para DoubleML
+    dml_data = DoubleMLData(data, y_col=y_col, d_cols=d_cols, x_cols = x_cols)
+    # Inicializar modelos DoubleMLPLR con RandomForest y ajuste
+    dml_plr_rf = DoubleMLPLR(dml_data, ml_l=ml_m_rf, ml_m=ml_e_rf, n_folds=n_folds)
+    dml_plr_rf.fit()
+    # Inicializar modelos DoubleMLPLR con XGBoost y ajuste
+    dml_plr_xgb = DoubleMLPLR(dml_data, ml_l=ml_m_xgb, ml_m=ml_e_xgb, n_folds=n_folds)
+    dml_plr_xgb.fit()
+    
+    # Resumen de resultados de ambos:
+    if show_summary:
+        print("============= INFORMACIÓN PARA {} =============".format(curso))
+        print("Summary RandomForest:")
+        print(dml_plr_rf.summary)
+        print("\nSummary XGBoost:")
+        print(dml_plr_xgb.summary)
+  
+    confint_rf = dml_plr_rf.confint()
+    print("\nConfidence Interval RandomForest:")
+    print(confint_rf)
+    confint_xgb = dml_plr_xgb.confint()
+    print("\nConfidence Interval XGBoost:")
+    print(confint_xgb)
+    # Calcular efectos condicionales (GATE)
+    if grupos is not None:
+      
+        # GATE con RandomForest
+        gate_rf = dml_plr_rf.gate(groups=grupos)
+        print("\nGATE RandomForest " + curso + ":")
+        print(gate_rf.confint(level=0.95))
+        ci_rf = gate_rf.confint(level=0.95, joint=False)
+        # Calcular errores para barras de error de RandomForest
+        errors_rf = np.full((2, ci_rf.shape[0]), np.nan)
+        errors_rf[0, :] = ci_rf['effect'] - ci_rf['2.5 %']
+        errors_rf[1, :] = ci_rf['97.5 %'] - ci_rf['effect']
+        # Graficar barras de error para RandomForest
+        plt.figure(figsize=(10, 6))
+        plt.errorbar(ci_rf.index, ci_rf.effect, fmt='o', yerr=errors_rf, label='Efecto estimado (IC conjunto) RandomForest')
+        plt.title('GATEs RandomForest ' + curso)
+        plt.xlabel('Grupos')
+        plt.ylabel('Effect and 95%-CI')
+        plt.legend()
+        plt.show()
+        # GATE con XGBoost
+        gate_xgb = dml_plr_xgb.gate(groups=grupos)
+        print("\nGATE XGBoost " + curso + ":")
+        print(gate_xgb.confint(level=0.95))
+        ci_xgb = gate_xgb.confint(level=0.95, joint=False)
+        # Calcular errores para barras de error de XGBoost
+        errors_xgb = np.full((2, ci_xgb.shape[0]), np.nan)
+        errors_xgb[0, :] = ci_xgb['effect'] - ci_xgb['2.5 %']
+        errors_xgb[1, :] = ci_xgb['97.5 %'] - ci_xgb['effect']
+        # Graficar barras de error para XGBoost
+        plt.figure(figsize=(10, 6))
+        plt.errorbar(ci_xgb.index, ci_xgb.effect, fmt='o', yerr=errors_xgb, label='Efecto estimado (IC conjunto) XGBoost')
+        plt.title('GATEs XGBoost ' + curso)
+        plt.xlabel('Grupos')
+        plt.ylabel('Effect and 95%-CI')
+        plt.legend()
+        plt.show()
+    return dml_plr_rf, dml_plr_xgb
+```
+
+```{python}
+ml_m_rf = RandomForestRegressor(random_state=123)
+ml_e_rf = RandomForestClassifier(random_state=123)
+ml_m_xgb = XGBRegressor(objective="reg:squarederror", random_state=123)
+ml_e_xgb = XGBClassifier(use_label_encoder=False, objective="binary:logistic", eval_metric="logloss", random_state=123)
+```
+
+GATE etnia
+```{python}
+StarkDf_encoded_w_a <- r_to_py(StarkDf_encoded_w_a)
+Star1Df_encoded_w_a <- r_to_py(Star1Df_encoded_w_a)
+Star2Df_encoded_w_a <- r_to_py(Star2Df_encoded_w_a)
+Star3Df_encoded_w_a <- r_to_py(Star3Df_encoded_w_a)
+# Create a pandas DataFrame from the R data frame
+StarkDf_encoded_w_a = pd.DataFrame(r.StarkDf_encoded_w_a)
+Star1Df_encoded_w_a = pd.DataFrame(r.Star1Df_encoded_w_a)
+Star2Df_encoded_w_a = pd.DataFrame(r.Star2Df_encoded_w_a)
+Star3Df_encoded_w_a = pd.DataFrame(r.Star3Df_encoded_w_a)
+
+grupos_k = pd.DataFrame(
+    np.column_stack((StarkDf_encoded_w_a['ethnicityk_grouped_cauc'] == 1,
+                     (StarkDf_encoded_w_a['ethnicityk_grouped_cauc'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_1 = pd.DataFrame(
+    np.column_stack((Star1Df_encoded_w_a['ethnicity1_grouped_cauc'] == 1,
+                     (Star1Df_encoded_w_a['ethnicity1_grouped_cauc'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_2 = pd.DataFrame(
+    np.column_stack((Star2Df_encoded_w_a['ethnicity2_grouped_cauc'] == 1,
+                     (Star2Df_encoded_w_a['ethnicity2_grouped_cauc'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_3 = pd.DataFrame(
+    np.column_stack((Star3Df_encoded_w_a['ethnicity3_grouped_cauc'] == 1,
+                     (Star3Df_encoded_w_a['ethnicity3_grouped_cauc'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+
+
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=StarkDf_encoded_w_a,
+                                           y_col='notak',
+                                           d_cols='stark',
+                                           x = 'k',
+                                           grupos=grupos_k,
+                                           curso = "Kindergarten",
+                                           n_folds=10)
+                                           
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=Star1Df_encoded_w_a,
+                                           y_col='nota1',
+                                           d_cols='star1',
+                                           x = '1',
+                                           grupos=grupos_1,
+                                           curso = "1st Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=Star2Df_encoded_w_a,
+                                           y_col='nota2',
+                                           d_cols='star2',
+                                           x = '2',
+                                           grupos=grupos_2,
+                                           curso = "2nd Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=Star3Df_encoded_w_a,
+                                           y_col='nota3',
+                                           d_cols='star3',
+                                           x = '3',
+                                           grupos=grupos_3,
+                                           curso = "3rd Grade",
+                                           n_folds=10)
+
+```
+GATE género
+```{python}
+grupos_k = pd.DataFrame(
+    np.column_stack((StarkDf_encoded_w_a['genderk_female'] == 1,
+                     (StarkDf_encoded_w_a['genderk_female'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_1 = pd.DataFrame(
+    np.column_stack((Star1Df_encoded_w_a['gender1_female'] == 1,
+                     (Star1Df_encoded_w_a['gender1_female'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_2 = pd.DataFrame(
+    np.column_stack((Star2Df_encoded_w_a['gender2_female'] == 1,
+                     (Star2Df_encoded_w_a['gender2_female'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_3 = pd.DataFrame(
+    np.column_stack((Star3Df_encoded_w_a['gender3_female'] == 1,
+                     (Star3Df_encoded_w_a['gender3_female'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+
+
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=StarkDf_encoded_w_a,
+                                           y_col='notak',
+                                           d_cols='stark',
+                                           x = 'k',
+                                           grupos=grupos_k,
+                                           curso = "Kindergarten",
+                                           n_folds=10)
+                                           
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=Star1Df_encoded_w_a,
+                                           y_col='nota1',
+                                           d_cols='star1',
+                                           x = '1',
+                                           grupos=grupos_1,
+                                           curso = "1st Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=Star2Df_encoded_w_a,
+                                           y_col='nota2',
+                                           d_cols='star2',
+                                           x = '2',
+                                           grupos=grupos_2,
+                                           curso = "2nd Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=Star3Df_encoded_w_a,
+                                           y_col='nota3',
+                                           d_cols='star3',
+                                           x = '3',
+                                           grupos=grupos_3,
+                                           curso = "3rd Grade",
+                                           n_folds=10)
+```
+GATE Ubicación colegio
+```{python}
+grupos_k = pd.DataFrame(
+    np.column_stack((StarkDf_encoded_w_a['schoolk_rural'] == 1,
+                     (StarkDf_encoded_w_a['schoolk_rural'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_1 = pd.DataFrame(
+    np.column_stack((Star1Df_encoded_w_a['school1_rural'] == 1,
+                     (Star1Df_encoded_w_a['school1_rural'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_2 = pd.DataFrame(
+    np.column_stack((Star2Df_encoded_w_a['school2_rural'] == 1,
+                     (Star2Df_encoded_w_a['school2_rural'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+grupos_3 = pd.DataFrame(
+    np.column_stack((Star3Df_encoded_w_a['school2_rural'] == 1,
+                     (Star3Df_encoded_w_a['school2_rural'] == 0))),
+                     
+    columns=['Grupo 1', 'Grupo 2'])
+
+
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=StarkDf_encoded_w_a,
+                                           y_col='notak',
+                                           d_cols='stark',
+                                           x = 'k',
+                                           grupos=grupos_k,
+                                           curso = "Kindergarten",
+                                           n_folds=10)
+                                           
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=Star1Df_encoded_w_a,
+                                           y_col='nota1',
+                                           d_cols='star1',
+                                           x = '1',
+                                           grupos=grupos_1,
+                                           curso = "1st Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=Star2Df_encoded_w_a,
+                                           y_col='nota2',
+                                           d_cols='star2',
+                                           x = '2',
+                                           grupos=grupos_2,
+                                           curso = "2nd Grade",
+                                           n_folds=10)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=Star3Df_encoded_w_a,
+                                           y_col='nota3',
+                                           d_cols='star3',
+                                           x = '3',
+                                           grupos=grupos_3,
+                                           curso = "3rd Grade",
+                                           n_folds=10)
+```
 
 ## Distribuciones para las variables mirando por la variable de tratamiento
 
@@ -414,7 +909,6 @@ starDf$mark1 <- starDf$read1 + starDf$math1
 starDf$mark2 <- starDf$read2 + starDf$math2
 starDf$mark3 <- starDf$read3 + starDf$math3
 ```
-
 
 ## Estimación naive del efecto del tratamiento
 
@@ -654,7 +1148,6 @@ write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
 ## Uso de Meta-Learners
-
 
 ```{python }
 # importamos metalearners
