@@ -349,6 +349,11 @@ starDf <- starDf %>%
     birth_year = as.numeric(format(starDf$birth, "%Y")),
     birth_quantile = as.factor(format(starDf$birth, "%q"))
   )
+
+starDfk <- starDf %>% filter(stark != "regular+aide") %>% mutate(stark = ifelse(stark == "small", 1, 0))
+starDf1 <- starDf %>% filter(star1 != "regular+aide") %>% mutate(star1 = ifelse(star1 == "small", 1, 0))
+starDf2 <- starDf %>% filter(star2 != "regular+aide") %>% mutate(star2 = ifelse(star2 == "small", 1, 0))
+starDf3 <- starDf %>% filter(star3 != "regular+aide") %>% mutate(star3 = ifelse(star3 == "small", 1, 0))
 ```
 
 ```{r}
@@ -531,13 +536,6 @@ ggdag(dag)
 Para obtener una primera estimación del efecto medio del tratamiento (AET) para cada curso podemos emplear el estimador diferencia en medias (DIM), definido como el valor promedio de la respuesta de los tratados menos el valor promedio de la respuesta para los no tratados. En ausencia de independencia, independencia condicional o asigación aleatoria del tratamiento, este es un estimador sesgado y es distinto al efecto medio del tratamiento.
 
 Según la documentación del estudio, tanto la asignación de alumnos como de profesores fue totalmente aleatoria, por lo que podemos tomar el DIM como una primera estimación válida del AET con la que comparar el resto de estimaciones que realizaremos más adelante, considerando ya variables de confusión.
-
-```{r}
-starDfk <- starDf %>% filter(stark != "regular+aide") %>% mutate(stark = ifelse(stark == "small", 1, 0))
-starDf1 <- starDf %>% filter(star1 != "regular+aide") %>% mutate(star1 = ifelse(star1 == "small", 1, 0))
-starDf2 <- starDf %>% filter(star2 != "regular+aide") %>% mutate(star2 = ifelse(star2 == "small", 1, 0))
-starDf3 <- starDf %>% filter(star3 != "regular+aide") %>% mutate(star3 = ifelse(star3 == "small", 1, 0))
-```
 
 
 ```{r}
