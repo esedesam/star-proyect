@@ -424,6 +424,7 @@ starDf %>%
   facet_wrap(~treatment) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
 En la nueva variable `ethnicity_grouped` las distribuciones también son similares.
 
 
