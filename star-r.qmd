@@ -37,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, fastDummies, MatchIt)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, fastDummies, MatchIt, cobalt)
 
 # Ajustes adicionales
 theme_set(
@@ -341,7 +341,7 @@ Por otra parte, escogemos como efecto la variación de una nueva variable **nota
 
 Además, realizamos el análisis para cada año de manera independiente.
 
-```{r}
+```{r variable-nota}
 nota <- data.frame(
   notak = starDf$readk + starDf$mathk,
   nota1 = starDf$read1 + starDf$math1,
@@ -354,11 +354,11 @@ nota <- data.frame(
 # nota <- nota[complete.cases(nota), ]
 ```
 
-```{r}
+```{r análisis-variable-nota}
 summary(nota)
 ```
 
-```{r}
+```{r creación-df-curso}
 #Df para kindergarten
 StarkDf <- data.frame(
   stark <- starDf$stark,
@@ -453,16 +453,13 @@ names(Star3Df) <- c(
 ```
 
 
-```{r}
+```{r preprocesado-dfs}
 # Eliminar los registros con NAs
 StarkDf <- StarkDf[complete.cases(StarkDf), ]
 Star1Df <- Star1Df[complete.cases(Star1Df), ]
 Star2Df <- Star2Df[complete.cases(Star2Df), ]
 Star3Df <- Star3Df[complete.cases(Star3Df), ]
-```
 
-
-```{r}
 # Realizar One-hot encoding de todas las variables categóricas
 StarkDf_encoded <- dummy_cols(StarkDf, select_columns = c(
   "lunchk", "schoolk", "degreek", "ladderk", 
@@ -486,7 +483,7 @@ Star3Df_encoded <- dummy_cols(Star3Df, select_columns = c(
 ```
 
 
-```{r}
+```{r medias-variables}
 StarkDf_encoded_grouped <- StarkDf_encoded %>%
   mutate(across(.cols = c(systemk, schoolidk), .fns = as.numeric)) %>%
   group_by(stark) %>%
@@ -512,24 +509,24 @@ Star3Df_encoded_grouped <- Star3Df_encoded %>%
   summarise_all(mean)
 ```
 
-```{r}
+```{r df-kindergarten}
 StarkDf_encoded_grouped
 ```
 
-```{r}
+```{r df-1}
 Star1Df_encoded_grouped
 ```
 
-```{r}
+```{r df-2}
 Star2Df_encoded_grouped
 ```
 
 
-```{r}
+```{r df-3}
 Star3Df_encoded_grouped
 ```
 
-```{r}
+```{r modelo-lineal}
 ## Stock and Watson, p. 488
 fmk <- lm(I(readk + mathk) ~ stark, data = STAR)
 fm1 <- lm(I(read1 + math1) ~ star1, data = STAR)
@@ -568,19 +565,81 @@ library("lattice")
 bwplot(I(read + math) ~ star | grade, data = star)
 ```
 
-```{r}
-
+```{r match-full}
 star1_match <- Star1Df[!(Star1Df$star1 == "regular+aide"),]
 star1_match$star1 <- factor(star1_match$star1, levels = c("regular", "small"), labels = c(0, 1))
-m.ps.nn.1 <- matchit(star1 ~ nota1,
-                  method="nearest",
+m.ps.nn.1 <- matchit(star1 ~ experience1 + lunch1 + school1 + gender1 +  ethnicity1,
+                  method="full",
                   distance="glm",
-                  data=star1_match)
+                  data=star1_match,
+                  estimand = "ATT")
+
+stark_match <- StarkDf[!(StarkDf$stark == "regular+aide"),]
+stark_match$stark <- factor(stark_match$stark, levels = c("regular", "small"), labels = c(0, 1))
+m.ps.nn.k <- matchit(stark ~ experiencek + lunchk + schoolk + genderk +  ethnicityk,
+                  method="full",
+                  distance="glm",
+                  data=stark_match,
+                  estimand = "ATT")
+
+star2_match <- Star2Df[!(Star2Df$star2 == "regular+aide"),]
+star2_match$star2 <- factor(star2_match$star2, levels = c("regular", "small"), labels = c(0, 1))
+m.ps.nn.2 <- matchit(star2 ~ experience2 + lunch2 + school2 + gender2 +  ethnicity2,
+                  method="full",
+                  distance="glm",
+                  data=star2_match,
+                  estimand = "ATT")
+
+star3_match <- Star3Df[!(Star3Df$star3 == "regular+aide"),]
+star3_match$star3 <- factor(star3_match$star3, levels = c("regular", "small"), labels = c(0, 1))
+m.ps.nn.3 <- matchit(star3 ~ experience3 + lunch3 + school3 + gender3 +  ethnicity3,
+                  method="full",
+                  distance="glm",
+                  data=star3_match,
+                  estimand = "ATT")
 ```
 
-```{r}
-summary(m.ps.nn.1)
+```{r objeto-match}
+summary(m.ps.nn.k)
 ```
 
+```{r love-plot}
+love.plot(m.ps.nn.k,stats = c("m","var","ks"), 
+          abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+          stars = "std")
+love.plot(m.ps.nn.1,stats = c("m","var","ks"), 
+          abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+          stars = "std")
+love.plot(m.ps.nn.2,stats = c("m","var","ks"), 
+          abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+          stars = "std")
+love.plot(m.ps.nn.3,stats = c("m","var","ks"), 
+          abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+          stars = "std")
 
+```
+
+```{r datos-match-medias}
+datos_match_k <- match.data(m.ps.nn.k)
+datos_match_1 <- match.data(m.ps.nn.1)
+datos_match_2 <- match.data(m.ps.nn.2)
+datos_match_3 <- match.data(m.ps.nn.3)
+
+
+datos_match_k %>% 
+  group_by(stark) %>% 
+  summarise(weighted.mean(notak, weights))
+
+datos_match_1 %>% 
+  group_by(star1) %>% 
+  summarise(weighted.mean(nota1, weights))
+
+datos_match_2 %>% 
+  group_by(star2) %>% 
+  summarise(weighted.mean(nota2, weights))
+
+datos_match_3 %>% 
+  group_by(star3) %>% 
+  summarise(weighted.mean(nota3, weights))
+```
 
