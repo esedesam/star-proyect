@@ -572,7 +572,7 @@ m.ps.nn.1 <- matchit(star1 ~ experience1 + lunch1 + school1 + gender1 +  ethnici
                   method="full",
                   distance="glm",
                   data=star1_match,
-                  estimand = "ATT")
+                  estimand = "ATE")
 
 stark_match <- StarkDf[!(StarkDf$stark == "regular+aide"),]
 stark_match$stark <- factor(stark_match$stark, levels = c("regular", "small"), labels = c(0, 1))
@@ -580,7 +580,7 @@ m.ps.nn.k <- matchit(stark ~ experiencek + lunchk + schoolk + genderk +  ethnici
                   method="full",
                   distance="glm",
                   data=stark_match,
-                  estimand = "ATT")
+                  estimand = "ATE")
 
 star2_match <- Star2Df[!(Star2Df$star2 == "regular+aide"),]
 star2_match$star2 <- factor(star2_match$star2, levels = c("regular", "small"), labels = c(0, 1))
@@ -588,7 +588,7 @@ m.ps.nn.2 <- matchit(star2 ~ experience2 + lunch2 + school2 + gender2 +  ethnici
                   method="full",
                   distance="glm",
                   data=star2_match,
-                  estimand = "ATT")
+                  estimand = "ATE")
 
 star3_match <- Star3Df[!(Star3Df$star3 == "regular+aide"),]
 star3_match$star3 <- factor(star3_match$star3, levels = c("regular", "small"), labels = c(0, 1))
@@ -596,7 +596,7 @@ m.ps.nn.3 <- matchit(star3 ~ experience3 + lunch3 + school3 + gender3 +  ethnici
                   method="full",
                   distance="glm",
                   data=star3_match,
-                  estimand = "ATT")
+                  estimand = "ATE")
 ```
 
 ```{r objeto-match}
