@@ -899,6 +899,14 @@ if (!dir.exists("data")) {
 write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
+## Aplicación ténicas de match
+
+
+
+
+
+
+
 ## Uso de Meta-Learners
 
 
