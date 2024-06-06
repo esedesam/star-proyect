@@ -36,7 +36,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally, stringr, vcd)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally, stringr, vcd, MatchIt, cobalt, marginaleffects)
 
 # Ajustes adicionales
 theme_set(
@@ -901,9 +901,145 @@ write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 
 ## Aplicación ténicas de match
 
+```{r match-df-year}
+starDf_k <- starDf %>%
+              select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(stark != "regular+aide")
+starDf_1 <- starDf %>%
+              select(gender, ethnicity_grouped, star1, mark1, lunch1, experience1, school1) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(star1 != "regular+aide")
+starDf_2 <- starDf %>%
+              select(gender, ethnicity_grouped, star2, mark2, lunch2, experience2, school2) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(star2 != "regular+aide")
+starDf_3 <- starDf %>%
+              select(gender, ethnicity_grouped, star3, mark3, lunch3, experience3, school3) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(star3 != "regular+aide")
+```
 
 
+```{r match-object}
+star_k_match_object <- matchit(stark ~ experiencek + lunchk + schoolk + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_k,
+                                estimand = "ATE")
+star_1_match_object <- matchit(star1 ~ experience1 + lunch1 + school1 + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_1,
+                                estimand = "ATE")
+star_2_match_object <- matchit(star2 ~ experience2 + lunch2 + school2 + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_2,
+                                estimand = "ATE")
+star_3_match_object <- matchit(star3 ~ experience3 + lunch3 + school3 + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_3,
+                                estimand = "ATE")
+```
 
+
+```{r match-love-plot}
+love.plot(star_k_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+love.plot(star_1_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+love.plot(star_2_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+love.plot(star_3_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+```
+
+```{r match-data}
+star_k_match_data <- match.data(star_k_match_object)
+star_1_match_data <- match.data(star_1_match_object)
+star_2_match_data <- match.data(star_2_match_object)
+star_3_match_data <- match.data(star_3_match_object)
+```
+
+```{r match-meandiff-kindergarden}
+modelo_match_k <- glm(stark ~ markK*(experiencek + lunchk + schoolk + gender +  ethnicity_grouped),
+                      data=star_k_match_data,family = quasibinomial(),
+                      weights = weights)
+pred.gformula <- predictions(modelo_match_k,
+                      variables = "markK", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_k_match_data, # ATE
+                      wts = "weights",
+                      by="markK") # variable de agregación
+pred.gformula
+
+avg_comparisons(modelo_match_k,variables = "markK",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_k_match_data,
+                      wts = "weights")
+```
+
+```{r match-meandiff-grade1}
+modelo_match_1 <- glm(star1 ~ mark1*(experience1 + lunch1 + school1 + gender +  ethnicity_grouped),
+                      data=star_1_match_data,family = quasibinomial(),
+                      weights = weights)
+pred.gformula <- predictions(modelo_match_1,
+                      variables = "mark1", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_1_match_data, # ATE
+                      wts = "weights",
+                      by="mark1") # variable de agregación
+
+pred.gformula
+
+avg_comparisons(modelo_match_1,variables = "mark1",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_1_match_data,
+                      wts = "weights")
+
+```
+
+```{r match-meandiff-grade2}
+modelo_match_2 <- glm(star2 ~ mark2*(experience2 + lunch2 + school2 + gender +  ethnicity_grouped),
+                      data=star_2_match_data,family = quasibinomial(),
+                      weights = weights)
+pred.gformula <- predictions(modelo_match_2,
+                      variables = "mark2", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_2_match_data, # ATE
+                      wts = "weights",
+                      by="mark2") # variable de agregación
+pred.gformula
+
+avg_comparisons(modelo_match_2,variables = "mark2",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_2_match_data,
+                      wts = "weights")
+```
+
+```{r match-meandiff-grade3}
+modelo_match_3 <- glm(star3 ~ mark3*(experience3 + lunch3 + school3 + gender +  ethnicity_grouped),
+                      data=star_3_match_data,family = quasibinomial(),
+                      weights = weights)
+pred.gformula <- predictions(modelo_match_3,
+                      variables = "mark3", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_3_match_data, # ATE
+                      wts = "weights",
+                      by="mark3") # variable de agregación
+pred.gformula
+
+avg_comparisons(modelo_match_3,variables = "mark3",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_3_match_data,
+                      wts = "weights")
+```
 
 
 
