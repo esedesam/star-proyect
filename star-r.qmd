@@ -23,6 +23,7 @@ execute:
   include: true
 lang: es
 css: utilities/qmdStyle.css
+bibliography: utilities/bibliography.bib
 ---
 
 
@@ -36,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally, stringr, vcd)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally, stringr, vcd, ggdag, kableExtra, reticulate)
 
 # Ajustes adicionales
 theme_set(
@@ -449,7 +450,7 @@ Como era de esperar, hay una correlación bastante notable entre las puntuacione
 
 La experiencia del profesorado también tiene cierta correlación positiva con las puntuaciones, pero muy débil. $\\$
 
-A continuación analizamos posibles asociaciones entre variables categóricas para cada curso mediante el estadístico V de Cramer, que está acotado entre 0 y 1, siendo 1 asociación total entre un par de variables categóricas y 0 ninguna asociación. 
+A continuación, analizamos posibles **asociaciones entre variables categóricas** para cada curso mediante el estadístico V de Cramer, que está acotado entre 0 y 1, siendo 1 asociación total entre un par de variables categóricas y 0 ninguna asociación. 
 
 ```{r cramer-v-functions}
 # Función para calcular V de Cramer
@@ -608,26 +609,52 @@ starDf %>%
 
 Las distribuciones de tipo de escuela según los distintos tratamientos también son de un vistazo bastante similares.
 
-## Selección de variables confusoras
+## Selección de variables confusoras: creación del modelo DAG
 
-Con la finalidad de diseñar un modelo causal, a continuación vamos a comprobar qué variables son más relevantes en un modelo de regresión lineal múltiple que prediga la respuesta al tratamiento, ya que las variables más relevantes pueden ser candidatas a variables confusoras del modelo causal, o explicar parte de la variabilidad de la respuesta.
+El modelo causal que se mostrará a continuación es el que ha dado menos problemas a la hora de recuperar efectos del tratamiento en etapas posteriores (sobre todo en la parte de DoubleML). Son también las variables sobre las que más hincapié se hace en la literatura que hemos consultado [@hanck2021introduction; @Mosteller].
 
-Para determinar si estas variables son significativas en la predicción la función `lm()` realiza un test t-Student sobre cada uno de los coeficientes de la regresión. Puesto que vamos a realizar un análisis independiente para cada curso escolar, planteamos cuatro modelos distintos, uno para cada curso, donde tanto las variables como la respuesta seleccionadas se corresponden a su curso correspondiente.
+Estas variables son:
+
+-   Género del estudiante (`gender`)
+-   Experiencia del profesorado (`experience`)
+-   Etnicidad del estudiante (`ethnicity`)
+-   Participación en el almuerzo gratuito (`lunch`)
+-   Tipo de escuela (`school`)
+
+La variable `schoolid` veremos posteriormente que otorga mucha de la variabilidad explicada en un modelo de regresión múltiple, pero nos daba severos problemas en estimaciones de ATE con otro tipo de modelo y por ello no la incluimos en el modelo DAG. Al resto de variables como `tethnicity`, `degree` o `ladder` les sucedía algo parecido, pero en este caso tampoco aportaban tanto a la variabilidad explicada en el modelo de regresión.
 
 
+```{r DAGmodel, fig.cap=capFig("Modelo DAG para la recuperación del efecto del tratamiento.", y = "DAGmodel")}
+dag <- dagify(
+  mark ~ star + gender + experience + ethnnicity + lunch + school,
+  star ~ gender + experience + ethnnicity + lunch + school,
+  exposure = "star", 
+  outcome = "mark"
+)
 
+dag_data <- tidy_dagitty(dag) %>%
+  mutate(color = case_when(
+    name == "star" ~ "blue",
+    name == "mark" ~ "green"
+  ))
 
+ggdag(dag_data) +
+  geom_dag_edges() + 
+  geom_dag_node(aes(color = color), size = 15) + 
+  theme_dag_blank() + #
+  scale_color_identity() + 
+  labs(title = "Diagrama Acíclico Dirigido (DAG)",
+       subtitle = "Mecanismo Generador de Datos") +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        plot.subtitle = element_text(size = 12),
+        plot.caption = element_text(size = 10)) +
+  geom_dag_text(aes(label = name), size = 4, color = "red") 
 
-
-
-
-
-
-
+```
 
 # Análisis del efecto del tratamiento
 
-Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso. Además, calcularemos el percentil de esta variable para cada curso.
+Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso (el `mark` mostrado anteriormente en el DAG). Además, calcularemos el percentil de esta variable (`markPerc`).
 
 ```{r mark-variables}
 #convertir_a_cuartiles <- function(datos) {
@@ -687,7 +714,7 @@ colnames(naiveEstimates) <- c("K", "1", "2", "3")
 kable(naiveEstimates, caption = capTab("Estimaciones naive del efecto del tratamiento para los diferentes cursos"))
 ```
 
-Estos resultados son exactamente los mismos que los que se mostrarán a continuación con el modelo básico de regresión lineal. Sin embargo, lo siguiente será más riguroso al incluir también errores y cuestiones de significancia.
+Estos resultados son exactamente los mismos que los que se mostrarán a continuación con el modelo básico de regresión lineal. Sin embargo, lo siguiente será más riguroso al incluir también estimaciones del error y cuestiones de significancia.
 
 ## Modelos de regresión
 
@@ -699,7 +726,7 @@ $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClas
 
 donde $Y$ es la variable respuesta que nos será de interés, $\beta_0$ es el intercepto, $\beta_1$ es el indicador de la clase pequeña, $\beta_2$ es el indicador de la clase regular con ayuda. $\epsilon$ es el término de ruido usual incorporado en el modelo.
 
-Se toma en primer lugar a $Y = \text{mark}$, la suma de las puntuaciones de lectura y matemáticas (read + math).
+Se toma en primer lugar a $Y = \text{mark}$, la suma de las puntuaciones de lectura y matemáticas (`read` + `math`).
 
 Se calculan a continuación modelos lineales de regresión siguiendo la expresión anterior para cada uno de los cursos. Se calcularán también los errores estándar robustos para cada uno de los coeficientes (uso de la función `vcovHC` que contiene la matriz de covarianza robusta de los coeficientes estimados). Estos se utilizan para corregir los problemas de heterocedasticidad (cuando la varianza de los errores no es constante) en los modelos de regresión.
 
@@ -731,24 +758,21 @@ html_basicModel <- stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
 
 # quitar primer lista de la tabla esta
 html_basicModel <- html_basicModel[2:length(html_basicModel)]
-```
 
+# Concatenar todo el html para no tener una lista de strings
+html_basicModel <- paste(html_basicModel, collapse = "")
+```
 
 `r html_basicModel`
 
-Los resultados de la Tabla anterior dejan claro que hay un incremento del rendimiento del estudiante cuando está en clases reducidas (ver valores de los coeficientes, que además son muy significativos '***'). Las estimaciones están entre 13.899 y 29.781, si bien es cierto que el efecto en el curso 1 se separa un poco de los demás. Esto podría deberse a que en alguno de los años del programa los alumnos de la clase regular obtuvieran resultados bastante peores en comparación de los de las otras clases (ya que vemos que hay un efecto incluso notable con la clase regular + ayuda que en el resto no se ve).
+
+Los resultados de la Tabla anterior dejan claro que hay un incremento del rendimiento del estudiante cuando está en clases reducidas (ver valores de los coeficientes, que además son muy significativos '***'). Las estimaciones están entre 13.899 y 29.781, si bien es cierto que el efecto en el curso 1 se separa un poco de los demás. Esto podría deberse a que en ese año en particular los resultados de la case regular fueron bastante peores en comparación de los de las otras clases (ya que vemos que hay un efecto incluso notable con la clase regular + ayuda que en el resto no se ve).
 
 ### Modelos con más variables
 
 Buscaremos añadir más variables para ver si puede mejorarse la variación observada en la variable dependiente (la suma de las puntuaciones de lectura y matemáticas). Además, se intenta de esta manera intengar mitigar o resolver posibles problemas en una asignación no totalmente aleatoria de los tratamientos.
 
-A la vista de las variables con las que contamos, se añaden las siguientes como previsión de posible mejora. Estas cuentan con información de estudiante, profesorado y escuela:
-
-- Género del estudiante (`Gender`)
-- Etnicidad del estudiante (`Ethnicity_grouped`)
-- Experiencia del maestro (`Experience`)
-- Almuerzo gratuito (`Lunch`)
-- Tipo de escuela (`School`)
+Se añaden las variables comentadas anteriormente en el DAG, así como la variable `schoolId` que aumenta mucho el valor de la variabilidad explicada. Los modelos son los siguientes:
 
 Haremos distintos modelos incluyendo más o menos variables de las mostradas. Concretamente:
 
@@ -759,7 +783,7 @@ Modelo 2: $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{R
 Modelo 3: $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{School} \epsilon$
 
 
-Modelo 4: 
+Modelo 4 (el del DAG): 
 \begin{equation}
 \begin{aligned}
 Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{School} \\
@@ -788,7 +812,7 @@ Se presentan los resultados solo para el curso de jardín de infancia en aras de
 ```{r mean-differences-advancedModels_k}
 # Using just kindergarten data
 starDf_k <- starDf %>%
-  select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk, schoolidk, tethnicityk) # tethnicity hard to be used
+  select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk, schoolidk, markPerck, tethnicityk)  # tethnicity hard to be used
 
 model2k <- lm(markK ~ stark + experiencek, data = starDf_k)
 model3k <- lm(markK ~ stark + experiencek + schoolk, data = starDf_k)
@@ -809,7 +833,7 @@ rob_se_k <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
 ```{r mean-differences-summaryadvancedModels_k, include = F}
 html_comparisonModels <- stargazer(
   basicModelk, model2k, model3k, model4k, model5k, model6k,
-  title = capTab("Estimación de diferencias: comparación entre modelos"),
+  title = capTab("Estimación de diferencias: comparación entre modelos para Kindergarten"),
   header = FALSE, 
   model.numbers = FALSE,
   omit = "schoolidk",  # Omitir schoolidk
@@ -817,7 +841,7 @@ html_comparisonModels <- stargazer(
   omit.table.layout = "n",
   digits = 3, 
   type = "html",
-  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Modelo 5", "Modelo 6"),
+  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4 (DAG)", "Modelo 5", "Modelo 6"),
   dep.var.caption  = "Resultados para Kindergarten",
   dep.var.labels.include = FALSE,
   se = rob_se_k
@@ -831,11 +855,13 @@ html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl =
 html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl = TRUE)
 
 html_comparisonModels <- html_comparisonModels[2:length(html_comparisonModels)]
+
+html_comparisonModels <- paste(html_comparisonModels, collapse = "")
 ```
 
 `r html_comparisonModels`
 
-Las columnas de los Modelos 2 a 5 muestran que la inclusión de variables adicionales de índole estudiantil, docente y escolar no han modificado drásticamente el valor de la estimación del efecto del tratamiento.
+Las columnas de los Modelos 2 a 6 muestran que la inclusión de variables adicionales de índole estudiantil, docente y escolar no han modificado drásticamente el valor de la estimación del efecto del tratamiento.
 Continuamos teniendo un valor positivo y significativo para el efecto de la clase pequeña en el rendimiento de los estudiantes, en contraposición al que otorga la ayuda en la clase regular que no es significativo. 
 
 De todas maneras, estos resultados ayudan a fortalecer el hecho de que lo observado con el modelo básico no sufre demasiado de la posible asignación no aleatoria de los tratamientos. Añadir las variables de identificación aumenta considerablemente el valor del $R^2_\text{ajustado}$, disminuyendo además el valor de los errores estándar de los coeficientes que nos interesan (hay algo más de precisión, por tanto).
@@ -885,8 +911,11 @@ summaryBasicModel <- t(round(data.frame(
 ```
 
 ```{r mean-differences-summary-adapted-tab}
-kable(summaryBasicModel, caption = capTab("Estimaciones de efecto del tratamiento normalizadas por desviación estándar muestral"))
+kable(summaryBasicModel, caption = capTab("Estimaciones de efecto del tratamiento normalizadas por desviación estándar muestral para Kindergarten: modelo básico"))
 ```
+
+SSD es la desviación estándar muestral de la variable `mark` para cada curso. Los valores de `Small` y `RegAide` son los incrementos en la nota normalizados por la desviación estándar muestral. Los valores de `SmallSE` y `RegAideSE` son los errores estándar de los coeficientes estimados normalizados por la desviación estándar muestral.
+
 
 La diferencia que otorga estar en la clase reducida está en torno al 0.2 de desviación estándar en incremento de rendimiento, a excepción de lo ocurrido en el curso 1, por lo comentado anteriormente.
 
@@ -900,6 +929,10 @@ write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
 ## Uso de Meta-Learners
+
+Los meta-learners se basan en utilización de métodos ML disponibles diseñados para tareas de regresión o clasificación (no modificados para inferencia causal). Los meta-learners son una manera sencilla de aprovechar los métodos predictivos ML para estimar efectos condicionales. Se agrupan a su vez en métodos para la predicción de la respuesta condicional (S- y T-learner) o aquellos además usan una estimación del *Propensity Score* (p.e. DR- y X-learner).
+
+Se utiliza la librería `econml` [@econml].
 
 
 ```{python libraryLoading}
@@ -923,9 +956,32 @@ from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 import os
+#import rpy2.robjects as robjects
 
 import shap
 ```
+
+```{python python-fuctions}
+def capTabpy(x):
+    global capTabNo
+    capTabNo += 1
+    fstring = "<strong>Tabla {}. </strong> {}".format(capTabNo, x)
+    string = str(fstring)
+    return string
+
+def capFigpy(x, y):
+    global capFigNo
+    capFigNo += 1
+    fstring = "<strong>Figura {}. </strong> {} \\label{{fig:{}}}".format(capFigNo, x, y)
+    string = str(fstring)
+    return string
+```
+
+```{python}
+capTabNo = 5
+capFigNo = 31
+```
+
 
 ```{python seed}
 seed = 666
@@ -934,6 +990,10 @@ seed = 666
 ```{python dfLoading}
 starDf = pd.read_csv("./data/starDf.csv")
 ```
+
+Para la inclusión en los diferentes modelos necesitamos tener las cosas bien preprocesadas, ya que los metalearners solo admiten variables que sean numéricas. Se transformarán las variables categóricas a variables *dummy* y se eliminarán las filas con valores faltantes cuando sea necesario. Un ejemplo del conjunto de datos que tenemos se muestra a continuación. Puede observarse que nos hemos quedado con las variables del modelo DAG que dijimos con anterioridad.
+
+Una cosa relevante de mencionar es que a partir de aquí *nos hemos centrado en evaluar solo el tratamiento de la clase pequeña frente a la clase regular*, ya que se ha visto anteriormente que entre la clase regular y la clase regular con ayuda no parecía haber diferencias significativas.
 
 
 ```{python dfPreprocessing}
@@ -979,6 +1039,10 @@ starDf_2 = preprocess_data(starDf, "star2", "experience2", "school2", "lunch2", 
 starDf_3 = preprocess_data(starDf, "star3", "experience3", "school3", "lunch3", "ethnicity_grouped", "mark3")
 ```
 
+```{python showingExample}
+# Mostrar 5 primeras filas
+starDf_k.head()
+```
 
 ```{python dfSplittingforModels}
 Yk = starDf_k["markK"].values
@@ -998,17 +1062,16 @@ X3 = starDf_3.drop(columns=["mark3", "star3"])
 T3 = starDf_3["star3"].values
 ```
 
-```{python }
-print(Tk.mean(), T1.mean(), T2.mean(), T3.mean())
-```
 
+Dividimos el conjunto de datos en train y test. Se ha optado por una división 80 - 20. Se ha fijado una semilla para que los resultados sean reproducibles.
 
-```{python trainTestSplit}
+```{python trainTestSplit, echo = TRUE}
 xTrain_k, xTest_k, tTrain_k, tTest_k, yTrain_k, yTest_k = train_test_split(Xk, Tk, Yk, test_size=0.2, random_state=seed)
 ```
 
 
-```{python }
+```{python hist-respuesta-tratamiento, fig.cap="<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida)", echo=TRUE}
+
 # respuesta-tratamiento
 y0 = yTrain_k[tTrain_k==0]
 y1 = yTrain_k[tTrain_k==1]
@@ -1016,6 +1079,7 @@ respuesta=[y0,y1]
 etiquetas = ["control","tratados"]
 
 plt.figure(figsize=(8, 6))  # Opcional: Define el tamaño de la figura
+
 plt.boxplot(respuesta, labels=etiquetas)
 
 plt.title('Distribución de la respuesta por estatus de tratamiento')
@@ -1026,11 +1090,6 @@ plt.xlabel('Tratamiento')
 plt.show()
 ```
 
-
-```{python}
-# Estimación efecto por diferencia de medias (sesgado)
-y1.mean() - y0.mean()
-```
 
 ### S-Learner
 
@@ -1388,6 +1447,7 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            curso = "3rd Grade",
                                            n_folds=10)
 ```
+
 #### Efecto del tratamiento por tipo de escuela
 
 ```{python}
@@ -1458,4 +1518,4 @@ El p-valor de los modelos DoubleML es significativo al 99% para todos los cursos
 
 
 
-*Añadir referencias*
+# Referencias {#referencias}
