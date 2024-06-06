@@ -968,18 +968,18 @@ star_3_match_data <- match.data(star_3_match_object)
 ```
 
 ```{r match-meandiff-kindergarden}
-modelo_match_k <- glm(stark ~ markK*(experiencek + lunchk + schoolk + gender +  ethnicity_grouped),
-                      data=star_k_match_data,family = quasibinomial(),
+modelo_match_k <- glm(markK ~ stark*(experiencek + lunchk + schoolk + gender +  ethnicity_grouped),
+                      data=star_k_match_data,family = gaussian(),
                       weights = weights)
 pred.gformula <- predictions(modelo_match_k,
-                      variables = "markK", # variable para la que generar contrafactuales
+                      variables = "stark", # variable para la que generar contrafactuales
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_k_match_data, # ATE
                       wts = "weights",
-                      by="markK") # variable de agregación
+                      by="stark") # variable de agregación
 pred.gformula
 
-avg_comparisons(modelo_match_k,variables = "markK",
+avg_comparisons(modelo_match_k,variables = "stark",
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_k_match_data,
                       wts = "weights")
