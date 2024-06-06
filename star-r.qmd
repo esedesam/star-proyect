@@ -982,6 +982,11 @@ capTabNo = 5
 capFigNo = 31
 ```
 
+```{python}
+# Crear directorio de images si no existe
+if not os.path.exists("./images"):
+    os.makedirs("./images")
+```
 
 ```{python seed}
 seed = 666
@@ -1067,146 +1072,476 @@ Dividimos el conjunto de datos en train y test. Se ha optado por una división 8
 
 ```{python trainTestSplit, echo = TRUE}
 xTrain_k, xTest_k, tTrain_k, tTest_k, yTrain_k, yTest_k = train_test_split(Xk, Tk, Yk, test_size=0.2, random_state=seed)
+xTrain_1, xTest_1, tTrain_1, tTest_1, yTrain_1, yTest_1 = train_test_split(X1, T1, Y1, test_size=0.2, random_state=seed)
+xTrain_2, xTest_2, tTrain_2, tTest_2, yTrain_2, yTest_2 = train_test_split(X2, T2, Y2, test_size=0.2, random_state=seed)
+xTrain_3, xTest_3, tTrain_3, tTest_3, yTrain_3, yTest_3 = train_test_split(X3, T3, Y3, test_size=0.2, random_state=seed)
 ```
 
+Se muestra a continuación lo que sería la distribución de la respuesta (`mark`) por estatus de tratamiento para el curso de *Kindergarten*.
 
-```{python hist-respuesta-tratamiento, fig.cap="<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida)", echo=TRUE}
 
-# respuesta-tratamiento
-y0 = yTrain_k[tTrain_k==0]
-y1 = yTrain_k[tTrain_k==1]
-respuesta=[y0,y1]
-etiquetas = ["control","tratados"]
+```{python hist-respuesta-tratamiento, fig.cap="<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida) en KinderGarten.", echo=FALSE, message = FALSE, include = FALSE}
 
-plt.figure(figsize=(8, 6))  # Opcional: Define el tamaño de la figura
+# Agrupar los datos por tratamiento
+y0_k = Yk[Tk == 0]
+y1_k = Yk[Tk == 1]
+respuesta_k = [y0_k, y1_k]
 
-plt.boxplot(respuesta, labels=etiquetas)
+y0_1 = Y1[T1 == 0]
+y1_1 = Y1[T1 == 1]
+respuesta_1 = [y0_1, y1_1]
 
-plt.title('Distribución de la respuesta por estatus de tratamiento')
-plt.ylabel('Valor de la respuesta')
-plt.xlabel('Tratamiento')
+y0_2 = Y2[T2 == 0]
+y1_2 = Y2[T2 == 1]
+respuesta_2 = [y0_2, y1_2]
+
+y0_3 = Y3[T3 == 0]
+y1_3 = Y3[T3 == 1]
+respuesta_3 = [y0_3, y1_3]
+
+etiquetas = ["control", "tratados"]
+
+# Crear los subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Distribución de la respuesta por estatus de tratamiento')
+
+# Gráfico para Kindergarten
+axs[0, 0].boxplot(respuesta_k, labels=etiquetas)
+axs[0, 0].set_title('Kindergarten')
+axs[0, 0].set_ylabel('Valor de la respuesta')
+
+# Gráfico para Primer Grado
+axs[0, 1].boxplot(respuesta_1, labels=etiquetas)
+axs[0, 1].set_title('Primer Grado')
+
+# Gráfico para Segundo Grado
+axs[1, 0].boxplot(respuesta_2, labels=etiquetas)
+axs[1, 0].set_title('Segundo Grado')
+axs[1, 0].set_ylabel('Valor de la respuesta')
+axs[1, 0].set_xlabel('Tratamiento')
+
+# Gráfico para Tercer Grado
+axs[1, 1].boxplot(respuesta_3, labels=etiquetas)
+axs[1, 1].set_title('Tercer Grado')
+axs[1, 1].set_xlabel('Tratamiento')
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.88, hspace=0.5)  # Ajustar espacio entre filas
+
+plt.savefig("./images/boxplotRespuestaTratamiento.png", bbox_inches='tight', dpi=300)
 
 # Mostrar el gráfico
 plt.show()
 ```
+
+![<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida) en los diferentes cursos.](./images/boxplotRespuestaTratamiento.png)
+
 
 
 ### S-Learner
 
-```{python}
+El S-Learner es un modelo de aprendizaje supervisado que utiliza un único modelo predictivo para estimar tanto el resultado con el tratamiento como sin él. Se entrena concretamente un modelo predictivo usando las características de los individuos y la variable tratamiento como predictores. Luego, este modelo se usa para predecir el resultado bajo ambas condiciones para cada individuo y se calcula la diferencia entre las predicciones para obtener el efecto del tratamiento.
+
+Se estuvo probando con diferentes transformaciones, pero la que mejores resultados pudimos finalmente obtener era utilizando una transformación polinomial de grado 2 (`PolynomialFeatures`) con una regularización Lasso (L1), tras ajustar el valor del hiperparámetro `alpha`.
+
+```{python SLearner-defining, include = FALSE}
 #alpha = 0.2
 #ridge_reg = Ridge(alpha=alpha)
-
 poly = PolynomialFeatures(degree=2, include_bias=True)
 linregLASSO =  Lasso(alpha=0.1)
-#overall_model = make_pipeline(poly, ridge_reg)
-overall_model = make_pipeline(poly, linregLASSO) 
+overall_model = make_pipeline(poly, linregLASSO)
 
-# Instanciamos el S learner
 S_learner = SLearner(overall_model=overall_model)
-
-# Entrenamos S_learner (incluimos la opcion inference=bootstrap para obtener errores estándar)
-S_learner.fit(yTrain_k, tTrain_k, X=xTrain_k, inference="bootstrap")
-
-# Estimamos efectos tratamiento sobre datos de prueba
-S_te = S_learner.effect(xTest_k)
-
-# Histograma de TEs 
-plt.figure(figsize=(8, 6))
-plt.hist(S_te, bins=30, color='blue', alpha=0.7)
-plt.title('Histograma de efectos de tratamiento estimados')
-plt.xlabel('Efecto de tratamiento')
-plt.ylabel('Frecuencia')
-plt.show()
 ```
 
-```{python}
-lb, ub = S_learner.effect_interval(xTest_k)
 
-df = pd.DataFrame({'point': S_te,'lb':lb,'ub':ub})
-df = df.sort_values(by='point')
-yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
-yerr = abs(pd.DataFrame(yerr))
+```{python S-Learner-training, include = FALSE}
+# Inicializar listas para almacenar resultados
+all_te = []
+all_ate_intervals = []
+all_point_estimates = []
+all_lb = []
+all_ub = []
+shap_values = []
 
-# Establecer el tamaño de la figura
-plt.figure(figsize=(10, 6))
+# Listas de datos
+Y_list = [Yk, Y1, Y2, Y3]
+T_list = [Tk, T1, T2, T3]
+X_list = [Xk, X1, X2, X3]
+titles = ['Kindergarten', 'Primer Curso', 'Segundo Curso', 'Tercer Curso']
 
-# Índices para el eje x
-x = range(len(df))
+# Variable para controlar si es la primera iteración
+first_iteration = True
 
-# Dibujar los puntos centrales
-plt.plot(x, df['point'], 'o', label='Point')
+# Entrenar el S-Learner y obtener efectos para cada conjunto de datos
+for Y, T, X in zip(Y_list, T_list, X_list):
 
-# Dibujar las bandas como barras de error
-plt.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+    S_learner.fit(Y, T, X=X, inference="bootstrap")
+    
+    # Estimar efectos de tratamiento
+    S_te = S_learner.effect(X)
+    all_te.append(S_te)
+    
+    # Obtener intervalo de confianza del ATE
+    ate_interval = S_learner.ate_interval(X, T0=0, T1=1)
+    all_ate_intervals.append(ate_interval)
 
-# Añadir etiquetas y leyenda
-plt.xlabel('Index')
-plt.ylabel('Value')
-plt.title('Point Values and Confidence Bands')
-plt.legend()
+    # Obtener intervalos de confianza para cada punto estimado
+    lb, ub = S_learner.effect_interval(X)
+    all_lb.append(lb)
+    all_ub.append(ub)
+    all_point_estimates.append(S_te)
+    
+    # Guardar SHAP values solo en la primera iteración
+    if first_iteration:
+        shap_values = S_learner.shap_values(X)
+        first_iteration = False
+```
+
+```{python TE-SLearner, fig.cap = "<strong> Figura 33. </strong> Histograma de efectos de tratamiento estimados por el S-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Histogramas de efectos de tratamiento estimados', fontsize=16)
+
+# Dibujar histogramas para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    ax.hist(all_te[i], bins=30, color='blue', alpha=0.7)
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Efecto de tratamiento', fontsize=14)
+    ax.set_ylabel('Frecuencia', fontsize=14)
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.9)  # Ajustar el espacio del título
 
 # Mostrar el gráfico
 plt.show()
 ```
+```{python CI-SLearner, fig.cap = "<strong> Figura 34. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos.", echo = FALSE, message = FALSE}
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Estimaciones de efectos de tratamiento y bandas de confianza', fontsize=16)
+
+# Dibujar gráficos con barras de error para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    df = pd.DataFrame({'point': all_point_estimates[i], 'lb': all_lb[i], 'ub': all_ub[i]})
+    df = df.sort_values(by='point')
+    yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
+    yerr = abs(pd.DataFrame(yerr))
+
+    # Índices para el eje x
+    x = range(len(df))
+
+    # Dibujar los puntos centrales
+    ax.plot(x, df['point'], 'o', label='Point')
+
+    # Dibujar las bandas como barras de error
+    ax.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+
+    # Añadir etiquetas y leyenda
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Índice', fontsize=14)
+    ax.set_ylabel('TE', fontsize=14)
+    ax.legend()
 
 
-```{python}
-S_learner.ate_interval(xTest_k, T0=0, T1=1)
+plt.tight_layout()
+plt.subplots_adjust(top=0.9) 
+
+# Mostrar el gráfico
+plt.show()
+```
+Puede observarse que las barras de error son significativamente grandes: resulta bastante incierto estimar el efecto del tratamiento para un individuo a pesar de todos los esfuerzos que hemos hecho por buscar modelos más robustos.
+
+
+```{python ATE-SLearner-table, echo = FALSE, include = FALSE}
+# Crear un DataFrame para una mejor visualización de los intervalos de confianza del ATE
+ate_results = pd.DataFrame({
+    "Curso": ['Kindergarten', 'Primer Curso', 'Segundo Curso', 'Tercer Curso'],
+    "Lower Bound": [interval[0] for interval in all_ate_intervals],
+    "ATE": [S_learner.ate(X) for X in X_list],
+    "Upper Bound": [interval[1] for interval in all_ate_intervals]
+})
+
+
+fig, ax = plt.subplots(figsize=(8, 2))
+ax.axis('off')
+ax.axis('tight')
+
+ax.table(cellText=ate_results.values, colLabels=ate_results.columns, cellLoc='center', loc='center')
+
+plt.tight_layout()
+plt.savefig("./images/ate_intervals_slearner.png", bbox_inches='tight', dpi=300) # guardo porque no se renderiza bien en el RMarkdown y siempre acaba printeando basura :(
+plt.show()
 ```
 
+![<strong>Figura 35. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el S-learner.](./images/ate_intervals_slearner.png)
 
-```{python}
-shap_values = S_learner.shap_values(xTest_k)
+Los resultados para el ATE están en la línea de lo que obtuvimos con los modelos de regresión anteriores, quizás algo por debajo. Sin embargo, si tenemos en cuenta los intervalos de confianza, sí que caería en lo que antes vimos.
 
+Podemos a continuación observar los **SHAP values** (*Shapley Additive Explanations*), de tal forma que podamos entender el impacto de cada característica en la predicción de un modelo. Se mostrarán los resultados solo para Kindergarten en aras de la brevedad.
+
+El gráfico *waterfall* muestra cómo se combinan los efectos de las características individuales para llegar a la predicción final. Cada barra representa el SHAP value de una característica, y se ordenan de mayor a menor impacto en la predicción.
+
+```{python, echo = FALSE, include = FALSE}
 plt.figure(figsize=(20, 8))
-shap.plots.waterfall(shap_values['Y0']['T0_1.0'][1], max_display=20, show=False)
+shap.plots.waterfall(shap_values['Y0']['T0_1.0'][0], max_display=20, show=False)
 
-# Crear directorio de images si no existe
-if not os.path.exists("./images"):
-    os.makedirs("./images")
-    
 plt.savefig("./images/wfallSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![Test](./images/wfallSLearner_k.png)
+![<strong>Figura 36. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallSLearner_k.png)
 
-```{python}
+
+El gráfico de barras muestra la importancia media de cada característica en el modelo. Este gráfico se crea sumando los valores absolutos de los SHAP values de cada característica a lo largo de todas las observaciones.
+
+```{python, echo=FALSE, include = FALSE}
 plt.figure(figsize=(20, 8))
 shap.plots.bar(shap_values['Y0']['T0_1.0'], show = False)
 
 plt.savefig("./images/barSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![Testing](./images/barSLearner_k.png)
-
+![<strong>Figura 37. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barSLearner_k.png)
 
 
 ### X-learner
 
-```{python}
+En el X-Learner, al igual que en el DR-Learner, se tienen dos etapas para estimar el efecto del tratamiento en una población. En la primera etapa se estiman las funciones *nuisance*, como la propensión al tratamiento y la respuesta potencial condicional, para generar una pseudorespuesta. En la segunda etapa, se ajusta un modelo de regresión usando la pseudorespuesta y las covariables para obtener una estimación final del CATE. Tras esto, puede realizarse la predicción.
+
+En nuestro caso, usaremos el XLearner incorporando los modelos de `GradientBoostingRegressor` y `RandomForestClassifier` para las funciones nuisance y generación de pseudorespuesta. Se ha fijado un número de estimadores de 100 y una profundidad máxima de 10 para el modelo de regresión y de 6 para el modelo de clasificación.
+
+
+
+```{python XLearner-defining, include = FALSE}
 n = 10000
-# Instancia de X learner
-models = GradientBoostingRegressor(n_estimators=100, max_depth=10, min_samples_leaf=int(n/100))
+models = GradientBoostingRegressor(n_estimators=100, max_depth=10, min_samples_leaf=int(n/100), random_state=seed)
 propensity_model = RandomForestClassifier(n_estimators=100, max_depth=6, 
-                                                  min_samples_leaf=int(n/100))
+                                                  min_samples_leaf=int(n/100), random_state=seed)
                                                   
 X_learner = XLearner(models=models, propensity_model=propensity_model)
-# Train X_learner
-X_learner.fit(yTrain_k, tTrain_k, X=xTrain_k,inference="bootstrap")
-# Estimate treatment effects on test data
-X_te = X_learner.effect(xTest_k)
+```
 
-# Histograma de TEs 
-plt.figure(figsize=(8, 6))
-plt.hist(X_te, bins=30, color='blue', alpha=0.7)
-plt.title('Histograma de efectos de tratamiento estimados')
-plt.xlabel('Efecto de tratamiento')
-plt.ylabel('Frecuencia')
-plt.show()
+```{python XLearner-training, include = FALSE, eval = FALSE}
+all_te_x = []  
+all_ate_intervals_x = []  
+all_point_estimates_x = []  
+all_lb_x = []  
+all_ub_x = []  
+shap_values_x = []  
+
+first_iteration_x = True
+
+# Entrenar el XLearner y obtener efectos para cada conjunto de datos
+for Y, T, X in zip(Y_list, T_list, X_list):
+
+    X_learner.fit(Y, T, X=X, inference="bootstrap")
+    
+    # Estimar efectos de tratamiento
+    X_te = X_learner.effect(X)
+    all_te_x.append(X_te)
+    
+    # Obtener intervalo de confianza del ATE
+    ate_interval_x = X_learner.ate_interval(X, T0=0, T1=1)
+    all_ate_intervals_x.append(ate_interval_x)
+
+    # Obtener intervalos de confianza para cada punto estimado
+    lb_x, ub_x = X_learner.effect_interval(X)
+    all_lb_x.append(lb_x)
+    all_ub_x.append(ub_x)
+    all_point_estimates_x.append(X_te)
+    
+    # Guardar SHAP values solo en la primera iteración
+    
+    if first_iteration_x:
+        shap_values = X_learner.shap_values(X)
+        first_iteration_x = False
 ```
 
 ```{python}
+# Crear si no existe ./data/XLearner/
+if not os.path.exists("./data/XLearner/"):
+    os.makedirs("./data/XLearner/")
+```
+
+
+```{python}
+def guardar_listas(all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x):
+    # Guardar all_te_x
+    with open('./data/XLearner/all_te_x.pkl', 'wb') as file:
+        pickle.dump(all_te_x, file)
+    
+    # Guardar all_ate_intervals_x
+    with open('./data/XLearner/all_ate_intervals_x.pkl', 'wb') as file:
+        pickle.dump(all_ate_intervals_x, file)
+    
+    # Guardar all_point_estimates_x
+    with open('./data/XLearner/all_point_estimates_x.pkl', 'wb') as file:
+        pickle.dump(all_point_estimates_x, file)
+    
+    # Guardar all_lb_x
+    with open('./data/XLearner/all_lb_x.pkl', 'wb') as file:
+        pickle.dump(all_lb_x, file)
+    
+    # Guardar all_ub_x
+    with open('./data/XLearner/all_ub_x.pkl', 'wb') as file:
+        pickle.dump(all_ub_x, file)
+    
+    # Guardar shap_values_x
+    with open('./data/XLearner/shap_values_x.pkl', 'wb') as file:
+        pickle.dump(shap_values_x, file)
+```
+
+```{python}
+guardar_listas(all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x)
+```
+
+```{python}
+def cargar_listas():
+    # Cargar all_te_x
+    with open('./data/XLearner/all_te_x.pkl', 'rb') as file:
+        all_te_x = pickle.load(file)
+    
+    # Cargar all_ate_intervals_x
+    with open('./data/XLearner/all_ate_intervals_x.pkl', 'rb') as file:
+        all_ate_intervals_x = pickle.load(file)
+    
+    # Cargar all_point_estimates_x
+    with open('./data/XLearner/all_point_estimates_x.pkl', 'rb') as file:
+        all_point_estimates_x = pickle.load(file)
+    
+    # Cargar all_lb_x
+    with open('./data/XLearner/all_lb_x.pkl', 'rb') as file:
+        all_lb_x = pickle.load(file)
+    
+    # Cargar all_ub_x
+    with open('./data/XLearner/all_ub_x.pkl', 'rb') as file:
+        all_ub_x = pickle.load(file)
+    
+    # Cargar shap_values_x
+    with open('./data/XLearner/shap_values_x.pkl', 'rb') as file:
+        shap_values_x = pickle.load(file)
+    
+    return all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x
+```
+
+```{python}
+# Guardar X_learner
+with open('./data/XLearner/X_learner.pkl', 'wb') as file:
+    pickle.dump(X_learner, file)
+```
+
+
+```{python}
+all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x = cargar_listas()
+
+with open('./data/XLearner/X_learner.pkl', 'rb') as file:
+    X_learner = pickle.load(file)
+```
+
+
+
+```{python, fig.cap = "<strong> Figura 38. </strong> Histograma de efectos de tratamiento estimados por el X-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
+# Crear figura y subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Histogramas de efectos de tratamiento estimados (XLearner)', fontsize=16)
+
+# Dibujar histogramas para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    ax.hist(all_te_x[i], bins=30, color='blue', alpha=0.7)
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Efecto de tratamiento', fontsize=14)
+    ax.set_ylabel('Frecuencia', fontsize=14)
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.9)  # Ajustar el espacio del título
+
+# Mostrar el gráfico
+plt.show()
+```
+
+```{python, fig.cap = "<strong> Figura 39. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos (XLearner).", echo = FALSE, message = FALSE}
+# Crear figura y subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Estimaciones de efectos de tratamiento y bandas de confianza (XLearner)', fontsize=16)
+
+# Dibujar gráficos con barras de error para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    df = pd.DataFrame({'point': all_point_estimates_x[i], 'lb': all_lb_x[i], 'ub': all_ub_x[i]})
+    df = df.sort_values(by='point')
+    yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
+    yerr = abs(pd.DataFrame(yerr))
+
+    # Índices para el eje x
+    x = range(len(df))
+
+    # Dibujar los puntos centrales
+    ax.plot(x, df['point'], 'o', label='Point')
+
+    # Dibujar las bandas como barras de error
+    ax.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+
+    # Añadir etiquetas y leyenda
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Índice', fontsize=14)
+    ax.set_ylabel('TE', fontsize=14)
+    ax.legend()
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.9)
+
+# Mostrar el gráfico
+plt.show()
+```
+
+```{python ATE-XLearner-table, echo = FALSE, include = FALSE}
+ate_results_x = pd.DataFrame({
+    "Curso": ['Kindergarten', 'Primer Curso', 'Segundo Curso', 'Tercer Curso'],
+    "Lower Bound": [interval[0] for interval in all_ate_intervals_x],
+    "ATE": [X_learner.ate(X) for X in X_list],
+    "Upper Bound": [interval[1] for interval in all_ate_intervals_x]
+})
+
+# Crear figura y eje para la tabla
+fig, ax = plt.subplots(figsize=(8, 2))
+ax.axis('off')
+ax.axis('tight')
+
+# Crear la tabla y mostrarla
+ax.table(cellText=ate_results_x.values, colLabels=ate_results_x.columns, cellLoc='center', loc='center')
+
+# Ajustar el diseño y mostrar la tabla
+plt.tight_layout()
+plt.savefig("./images/ate_intervals_xlearner.png", bbox_inches='tight', dpi=300)
+plt.show()
+```
+
+![<strong>Figura 40. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el X-learner.](./images/ate_intervals_xlearner.png)
+
+```{python echo = FALSE, include = FALSE}
+plt.figure(figsize=(20, 8))
+shap.plots.waterfall(shap_values_x['Y0']['T0_1.0'][0], max_display=20, show=False)
+
+plt.savefig("./images/wfallXLearner_k.png", bbox_inches='tight', dpi=300)
+```
+
+![<strong>Figura 41. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallXLearner_k.png)
+
+
+
+
+```{python echo = FALSE, include = FALSE}
+plt.figure(figsize=(20, 8))
+shap.plots.bar(shap_values_x['Y0']['T0_1.0'], show = False)
+
+plt.savefig("./images/barXLearner_k.png", bbox_inches='tight', dpi=300)
+```
+
+![<strong>Figura 42. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barXLearner_k.png)
+
+
+```{python, eval = FALSE}
 lb, ub = X_learner.effect_interval(xTest_k)
 
 df = pd.DataFrame({'point': S_te,'lb':lb,'ub':ub})
@@ -1236,7 +1571,7 @@ plt.legend()
 plt.show()
 ```
 
-```{python}
+```{python, eval = FALSE}
 X_learner.ate_interval(xTest_k)
 ```
 
@@ -1331,7 +1666,7 @@ def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, 
 
 ```
 
-```{python}
+```{python, eval = FALSE}
 ml_m_rf = RandomForestRegressor(random_state=seed)
 ml_e_rf = RandomForestClassifier(random_state=seed)
 ml_m_xgb = XGBRegressor(objective="reg:squarederror", random_state=seed)
@@ -1343,7 +1678,7 @@ ml_e_xgb = XGBClassifier(use_label_encoder=False, objective="binary:logistic", e
 #### Efecto del tratamiento por etnia
 
 
-```{python}
+```{python eval = FALSE}
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['ethnicity_grouped'] == 1, starDf_k['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['ethnicity_grouped'] == 1, starDf_1['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_2 = pd.DataFrame(np.column_stack((starDf_2['ethnicity_grouped'] == 1, starDf_2['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
@@ -1397,7 +1732,7 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
 
 #### Efecto del tratamiento por género
 
-```{python}
+```{python eval = FALSE}
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['gender'] == 1, starDf_k['gender'] == 0)), columns=['female', 'male'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['gender'] == 1, starDf_1['gender'] == 0)), columns=['female', 'male'])
 grupos_2 = pd.DataFrame(np.column_stack((starDf_2['gender'] == 1, starDf_2['gender'] == 0)), columns=['female', 'male'])
@@ -1450,7 +1785,7 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
 
 #### Efecto del tratamiento por tipo de escuela
 
-```{python}
+```{python eval = FALSE}
 # Hay 4 grupos, 'inner-city', 'suburban', 'rural', 'urban'
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['schoolk_inner-city'] == 1, starDf_k['schoolk_suburban'] == 1, starDf_k['schoolk_rural'] == 1, starDf_k['schoolk_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['school1_inner-city'] == 1, starDf_1['school1_suburban'] == 1, starDf_1['school1_rural'] == 1, starDf_1['school1_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
