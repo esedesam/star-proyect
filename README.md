@@ -3,5 +3,5 @@ Repositorio dedicado al análisis del proyecto STAR: impacto de diferentes inter
 
 Instrucciones antes de ejecutar el .qmd:
 
-- Descomprimir el archivo XLearner.zip dentro de la carpeta './data/' previamente (se encuentra en dicha carpeta).
+- Descomprimir el archivo XLearner.zip dentro de la carpeta './data/' previamente (se encuentra en dicha carpeta). Esto es para acelerar el proceso de ejecución, ya que se necesita una cantidad enorme de memoria RAM para que vaya fluido.
 - El código utiliza R y Python, por lo que asegúrate de tener ambos disponibles.
