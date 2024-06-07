@@ -1994,7 +1994,7 @@ Parece que los grupos no caucásicos se benefician en mayor medida del hecho de 
 
 GENERO:
 
-En este caso observamos que las hombres se habrían beneficiado más del tratamiento que las hombres, sin embargo en kindergarten, que es cuando los niños entran en el sistema educativo, serían los hombres los que se beneficiarian más que las mujeres. En el resto de cursos son las mujeres las que perciben mayor efecto tratamiento.
+En este caso observamos que las mujeres se habrían beneficiado más del tratamiento que los hombres, sin embargo en kindergarten, que es cuando los niños entran en el sistema educativo, serían los hombres los que se beneficiarian más que las mujeres. En el resto de cursos son las mujeres las que perciben mayor efecto tratamiento.
 
 SCHOOL LOCATION:
 
