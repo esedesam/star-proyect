@@ -928,7 +928,7 @@ if (!dir.exists("data")) {
 write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
-## Aplicación ténicas de matching
+## Aplicación de ténicas de matching
 
 Si asumimos que ha habido fallos en el protocolo de asignación aleatoria del tratamiento, entonces la condición de independencia de los resultdos potenciales con el estatus de tratamiento no se cumple y el estimador diferenncia de medias es un estimador sesgado. No obstante, podemos considerar que las diferenccias en el estatus de tratamiento emergen por diferencias en las variables de confusión X, anteriormente mencionadas, y que una vez controladas la independencia se restablece (independencia condicional).
 
@@ -961,7 +961,7 @@ starDf_3 <- starDf %>%
               mutate(star3 = fct_drop(star3))
 ```
 
-Una vez obtenidos los Data Frames limpios, realicamos el Match It con las variables: experience, lunch, school, gender y ethnicity_grouped.
+Una vez obtenidos los Data Frames limpios, realizamos el Matchit con las variables: `experience`, `lunch`, `school`, `gender` y `ethnicity_grouped`.
 
 ```{r match-object}
 star_k_match_object <- matchit(stark ~ experiencek + lunchk + schoolk + gender + ethnicity_grouped,
@@ -986,33 +986,34 @@ star_3_match_object <- matchit(star3 ~ experience3 + lunch3 + school3 + gender +
                                 estimand = "ATE")
 ```
 
-Comprobamos el equlibrio de las variables tras el Match It visualizando los love plots de los distintos cursos.
+Comprobamos el equlibrio de las variables tras el matcht visualizando los love-plots de los distintos cursos.
 
-```{r match-love-plot-kindergarden, fig.cap=capFig("Love-plot del curso kindergarden.", y = "match-love-plot-kindergarden")}
+```{r match-love-plot-kindergarden, fig.cap=capFig("Love-plot de kindergarten", y = "match-love-plot-kindergarden")}
 
 love.plot(star_k_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
 ```
 
-```{r match-love-plot-grade1, fig.cap=capFig("Love-plot del curso grade 1.", y = "match-love-plot-grade1")}
+```{r match-love-plot-grade1, fig.cap=capFig("Love-plot del primer curso.", y = "match-love-plot-grade1")}
 love.plot(star_1_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
 ```
 
-```{r match-love-plot-grade2, fig.cap=capFig("Love-plot del curso grade 2.", y = "match-love-plot-grade2")}
+```{r match-love-plot-grade2, fig.cap=capFig("Love-plot del segundo curso.", y = "match-love-plot-grade2")}
 
 love.plot(star_2_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
 ```
 
-```{r match-love-plot-grade3, fig.cap=capFig("Love-plot del curso grade 3.", y = "match-love-plot-grade3")}
+```{r match-love-plot-grade3, fig.cap=capFig("Love-plot del tercer curso.", y = "match-love-plot-grade3")}
 love.plot(star_3_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
 ```
+
 Por lo general, observamos que las distribuciones de tratamiento y control ya estaban bastante balanceadas, el proceso mejora las métricas mostradas, pero no excesivamente. Como caso particular a considerar, vemos que la variables experience para el curso grade1 estaba bastante desbalanceada, pudiendo afectar de forma considerable a la estimación del ATE.
 
 Por último, obtenemos los datos correspondientes al proceso de matching, para poder recuperar el ATE.
@@ -1024,9 +1025,8 @@ star_2_match_data <- match.data(star_2_match_object)
 star_3_match_data <- match.data(star_3_match_object)
 ```
 
-Recuperación del ATE para el curso kindergarden:
 
-```{r match-meandiff-kindergarden, message = FALSE}
+```{r match-meandiff-kindergarden, message = FALSE, include = FALSE}
 modelo_match_k <- glm(markK ~ stark*(experiencek + lunchk + schoolk + gender +  ethnicity_grouped),
                       data=star_k_match_data,family = gaussian(),
                       weights = weights)
@@ -1038,15 +1038,14 @@ pred.gformula <- predictions(modelo_match_k,
                       wts = "weights",
                       by="stark") # variable de agregación
 
-avg_comparisons(modelo_match_k,variables = "stark",
+avgcompk <- avg_comparisons(modelo_match_k,variables = "stark",
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_k_match_data,
                       wts = "weights")
 ```
 
-Recuperación del ATE para el curso grade 1:
 
-```{r match-meandiff-grade1, message = FALSE}
+```{r match-meandiff-grade1, message = FALSE, include = FALSE}
 modelo_match_1 <- glm(mark1 ~ star1*(experience1 + lunch1 + school1 + gender +  ethnicity_grouped),
                       data=star_1_match_data,family = gaussian(),
                       weights = weights)
@@ -1059,16 +1058,15 @@ pred.gformula <- predictions(modelo_match_1,
                       by="star1") # variable de agregación
 
 
-avg_comparisons(modelo_match_1,variables = "star1",
+avgcomp1 <- avg_comparisons(modelo_match_1,variables = "star1",
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_1_match_data,
                       wts = "weights")
 
 ```
 
-Recuperación del ATE para el curso grade 2:
 
-```{r match-meandiff-grade2, message = FALSE}
+```{r match-meandiff-grade2, message = FALSE, include = FALSE}
 modelo_match_2 <- glm(mark2 ~ star2*(experience2 + lunch2 + school2 + gender +  ethnicity_grouped),
                       data=star_2_match_data,family = gaussian(),
                       weights = weights)
@@ -1079,15 +1077,14 @@ pred.gformula <- predictions(modelo_match_2,
                       wts = "weights",
                       by="star2") # variable de agregación
 
-avg_comparisons(modelo_match_2,variables = "star2",
+avgcomp2 <- avg_comparisons(modelo_match_2,variables = "star2",
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_2_match_data,
                       wts = "weights")
 ```
 
-Recuperación del ATE para el curso grade 3:
 
-```{r match-meandiff-grade3, message = FALSE}
+```{r match-meandiff-grade3, message = FALSE, include = FALSE}
 modelo_match_3 <- glm(mark3 ~ star3*(experience3 + lunch3 + school3 + gender +  ethnicity_grouped),
                       data=star_3_match_data,family = gaussian(),
                       weights = weights)
@@ -1099,13 +1096,23 @@ pred.gformula <- predictions(modelo_match_3,
                       wts = "weights",
                       by="star3") # variable de agregación
 
-avg_comparisons(modelo_match_3,variables = "star3",
+avgcomp3 <- avg_comparisons(modelo_match_3,variables = "star3",
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_3_match_data,
                       wts = "weights")
 ```
 
-Observamos que, en todos los casos, el efecto causal se reduce respecto a la previa obtención del ATE con los modelos lineales sin usar matching. Esta ligera reducción puede deberse a la consideración de variables de confusión en el tratameinto. Dado que está mejor identificado el efecto causal, esta estimación debería ser más fiable.
+```{r avgCompShowing}
+# Poner en una tabla los resultados avgcompk, avgcomp1, avgcomp2, avgcomp3 (luego hacer kable)
+avgcomp <- rbind(avgcompk, avgcomp1, avgcomp2, avgcomp3)
+rownames(avgcomp) <- c("K", "1", "2", "3")
+colnames(avgcomp) <- c("Term", "Contrast", "Estimate", "Std. Error", "z", "Pr(>|z|)", "S", "2.5 %", "97.5%")
+
+kable(avgcomp, caption = capTab("Estimaciones del efecto del tratamiento para los diferentes cursos tras el matching"))
+```
+
+
+Observamos que, en todos los casos, el efecto causal se reduce respecto a la previa obtención del ATE con los modelos lineales sin usar matching (al menos en valor estimado, pero realmente hay solapamiento por el error otorgado a este). Esta ligera reducción puede deberse a la consideración de variables de confusión en el tratamiento. Dado que está mejor identificado el efecto causal, esta estimación debería ser más fiable.
 
 ## Uso de Meta-Learners
 
@@ -1157,10 +1164,6 @@ def capFigpy(x, y):
     return string
 ```
 
-```{python}
-capTabNo = 5
-capFigNo = 31
-```
 
 ```{python}
 # Crear directorio de images si no existe
@@ -1315,7 +1318,7 @@ plt.savefig("./images/boxplotRespuestaTratamiento.png", bbox_inches='tight', dpi
 plt.show()
 ```
 
-![<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida) en los diferentes cursos.](./images/boxplotRespuestaTratamiento.png)
+![<strong>Figura 36. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida) en los diferentes cursos.](./images/boxplotRespuestaTratamiento.png)
 
 
 
@@ -1379,7 +1382,7 @@ for Y, T, X in zip(Y_list, T_list, X_list):
         first_iteration = False
 ```
 
-```{python TE-SLearner, fig.cap = "<strong> Figura 33. </strong> Histograma de efectos de tratamiento estimados por el S-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
+```{python TE-SLearner, fig.cap = "<strong> Figura 37. </strong> Histograma de efectos de tratamiento estimados por el S-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
 fig, axs = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle('Histogramas de efectos de tratamiento estimados', fontsize=16)
 
@@ -1397,7 +1400,8 @@ plt.subplots_adjust(top=0.9)  # Ajustar el espacio del título
 # Mostrar el gráfico
 plt.show()
 ```
-```{python CI-SLearner, fig.cap = "<strong> Figura 34. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos.", echo = FALSE, message = FALSE}
+
+```{python CI-SLearner, fig.cap = "<strong> Figura 38. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos.", echo = FALSE, message = FALSE}
 fig, axs = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle('Estimaciones de efectos de tratamiento y bandas de confianza', fontsize=16)
 
@@ -1430,6 +1434,7 @@ plt.subplots_adjust(top=0.9)
 # Mostrar el gráfico
 plt.show()
 ```
+
 Puede observarse que las barras de error son significativamente grandes: resulta bastante incierto estimar el efecto del tratamiento para un individuo a pesar de todos los esfuerzos que hemos hecho por buscar modelos más robustos.
 
 
@@ -1448,13 +1453,15 @@ ax.axis('off')
 ax.axis('tight')
 
 ax.table(cellText=ate_results.values, colLabels=ate_results.columns, cellLoc='center', loc='center')
+title = r'$\bf{Tabla\ 7.}$ Intervalos de confianza para el ATE en los diferentes cursos usando el S-Learner.'
+plt.title(title, fontsize=16, pad=1)
 
 plt.tight_layout()
 plt.savefig("./images/ate_intervals_slearner.png", bbox_inches='tight', dpi=300) # guardo porque no se renderiza bien en el RMarkdown y siempre acaba printeando basura :(
 plt.show()
 ```
 
-![<strong>Figura 35. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el S-learner.](./images/ate_intervals_slearner.png)
+![](./images/ate_intervals_slearner.png)
 
 Los resultados para el ATE están en la línea de lo que obtuvimos con los modelos de regresión anteriores, quizás algo por debajo. Sin embargo, si tenemos en cuenta los intervalos de confianza, sí que caería en lo que antes vimos.
 
@@ -1469,7 +1476,7 @@ shap.plots.waterfall(shap_values['Y0']['T0_1.0'][0], max_display=20, show=False)
 plt.savefig("./images/wfallSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![<strong>Figura 36. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallSLearner_k.png)
+![<strong>Figura 39. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallSLearner_k.png)
 
 
 El gráfico de barras muestra la importancia media de cada característica en el modelo. Este gráfico se crea sumando los valores absolutos de los SHAP values de cada característica a lo largo de todas las observaciones.
@@ -1481,7 +1488,7 @@ shap.plots.bar(shap_values['Y0']['T0_1.0'], show = False)
 plt.savefig("./images/barSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![<strong>Figura 37. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barSLearner_k.png)
+![<strong>Figura 40. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barSLearner_k.png)
 
 
 ### X-learner
@@ -1619,7 +1626,7 @@ with open('./data/XLearner/X_learner.pkl', 'rb') as file:
 ```
 
 
-```{python, fig.cap = "<strong> Figura 38. </strong> Histograma de efectos de tratamiento estimados por el X-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
+```{python, fig.cap = "<strong> Figura 41. </strong> Histograma de efectos de tratamiento estimados por el X-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
 # Crear figura y subplots
 fig, axs = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle('Histogramas de efectos de tratamiento estimados (XLearner)', fontsize=16)
@@ -1639,7 +1646,7 @@ plt.subplots_adjust(top=0.9)  # Ajustar el espacio del título
 plt.show()
 ```
 
-```{python, fig.cap = "<strong> Figura 39. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos (XLearner).", echo = FALSE, message = FALSE}
+```{python, fig.cap = "<strong> Figura 42. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos (XLearner).", echo = FALSE, message = FALSE}
 # Crear figura y subplots
 fig, axs = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle('Estimaciones de efectos de tratamiento y bandas de confianza (XLearner)', fontsize=16)
@@ -1689,6 +1696,8 @@ ax.axis('tight')
 
 # Crear la tabla y mostrarla
 ax.table(cellText=ate_results_x.values, colLabels=ate_results_x.columns, cellLoc='center', loc='center')
+title = r'$\bf{Tabla\ 8.}$ Intervalos de confianza para el ATE en los diferentes cursos usando el X-Learner.'
+plt.title(title, fontsize=16, pad=1)
 
 # Ajustar el diseño y mostrar la tabla
 plt.tight_layout()
@@ -1696,7 +1705,7 @@ plt.savefig("./images/ate_intervals_xlearner.png", bbox_inches='tight', dpi=300)
 plt.show()
 ```
 
-![<strong>Figura 40. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el X-learner.](./images/ate_intervals_xlearner.png)
+![](./images/ate_intervals_xlearner.png)
 
 El valor central para el ATE en este caso está en torno a lo que habíamos obtenido en ocasiones anteriores. Sin embargo, vemos que los intervalos de confianza son muchísimo peores que en el caso anterior. No hemos podido finalmente ajustar el modelo lo suficientemente bien como para que dé resultados más fiables.
 
@@ -1708,7 +1717,7 @@ shap.plots.waterfall(shap_values_x['Y0']['T0_1.0'][0], max_display=20, show=Fals
 plt.savefig("./images/wfallXLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![<strong>Figura 41. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallXLearner_k.png)
+![<strong>Figura 43. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallXLearner_k.png)
 
 
 
@@ -1719,7 +1728,7 @@ shap.plots.bar(shap_values_x['Y0']['T0_1.0'], show = False)
 plt.savefig("./images/barXLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![<strong>Figura 42. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barXLearner_k.png)
+![<strong>Figura 44. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barXLearner_k.png)
 
 
 
@@ -1950,7 +1959,7 @@ table.auto_set_font_size(False)
 table.set_fontsize(12)
 table.scale(1, 1)  # Puedes ajustar la escala aquí
 
-title = r'$\bf{Tabla\ 32.}$ Resultados obtenidos para el ATE con DoubleML.'
+title = r'$\bf{Tabla\ 9.}$ Resultados obtenidos para el ATE con DoubleML.'
 plt.title(title, fontsize=16, pad=1)
 fig.tight_layout()
 
@@ -2019,7 +2028,8 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            show_summary = show_summary,
                                            n_folds=10)
 ```
-```{python, fig.cap = "<strong> Figura 43. </strong> Efecto del tratamiento por etnia en los diferentes cursos.", echo = FALSE, message = FALSE}
+
+```{python, fig.cap = "<strong> Figura 45. </strong> Efecto del tratamiento por etnia en los diferentes cursos.", echo = FALSE, message = FALSE}
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            y_col='mark3',
                                            d_cols='star3',
@@ -2087,7 +2097,8 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            show_summary = show_summary,
                                            n_folds=10)
 ```
-```{python, fig.cap = "<strong> Figura 44. </strong> Efecto del tratamiento por género en los diferentes cursos.", echo = FALSE, message = FALSE}
+
+```{python, fig.cap = "<strong> Figura 46. </strong> Efecto del tratamiento por género en los diferentes cursos.", echo = FALSE, message = FALSE}
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            y_col='mark3',
                                            d_cols='star3',
@@ -2156,7 +2167,8 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            n_folds=10)
                                           
 ```
-```{python, fig.cap = "<strong> Figura 45. </strong> Efecto del tratamiento por tipo de escuela en los diferentes cursos.", echo = FALSE, message = FALSE}
+
+```{python, fig.cap = "<strong> Figura 47. </strong> Efecto del tratamiento por tipo de escuela en los diferentes cursos.", echo = FALSE, message = FALSE}
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            y_col='mark3',
                                            d_cols='star3',
