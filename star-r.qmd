@@ -959,6 +959,7 @@ import os
 #import rpy2.robjects as robjects
 
 import shap
+import pickle
 ```
 
 ```{python python-fuctions}
@@ -1353,7 +1354,7 @@ for Y, T, X in zip(Y_list, T_list, X_list):
     # Guardar SHAP values solo en la primera iteración
     
     if first_iteration_x:
-        shap_values = X_learner.shap_values(X)
+        shap_values_x = X_learner.shap_values(X)
         first_iteration_x = False
 ```
 
@@ -1391,7 +1392,7 @@ def guardar_listas(all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_
         pickle.dump(shap_values_x, file)
 ```
 
-```{python}
+```{python, eval = FALSE}
 guardar_listas(all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x)
 ```
 
@@ -1424,20 +1425,19 @@ def cargar_listas():
     return all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x
 ```
 
-```{python}
+```{python, eval = FALSE}
 # Guardar X_learner
 with open('./data/XLearner/X_learner.pkl', 'wb') as file:
     pickle.dump(X_learner, file)
 ```
 
 
-```{python}
+```{python loadingListsAndModel}
 all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x = cargar_listas()
 
 with open('./data/XLearner/X_learner.pkl', 'rb') as file:
     X_learner = pickle.load(file)
 ```
-
 
 
 ```{python, fig.cap = "<strong> Figura 38. </strong> Histograma de efectos de tratamiento estimados por el X-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
@@ -1519,6 +1519,9 @@ plt.show()
 
 ![<strong>Figura 40. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el X-learner.](./images/ate_intervals_xlearner.png)
 
+El valor central para el ATE en este caso está en torno a lo que habíamos obtenido en ocasiones anteriores. Sin embargo, vemos que los intervalos de confianza son muchísimo peores que en el caso anterior. No hemos podido finalmente ajustar el modelo lo suficientemente bien como para que dé resultados más fiables.
+
+
 ```{python echo = FALSE, include = FALSE}
 plt.figure(figsize=(20, 8))
 shap.plots.waterfall(shap_values_x['Y0']['T0_1.0'][0], max_display=20, show=False)
@@ -1527,7 +1530,6 @@ plt.savefig("./images/wfallXLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
 ![<strong>Figura 41. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallXLearner_k.png)
-
 
 
 
@@ -1541,43 +1543,10 @@ plt.savefig("./images/barXLearner_k.png", bbox_inches='tight', dpi=300)
 ![<strong>Figura 42. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barXLearner_k.png)
 
 
-```{python, eval = FALSE}
-lb, ub = X_learner.effect_interval(xTest_k)
-
-df = pd.DataFrame({'point': S_te,'lb':lb,'ub':ub})
-df = df.sort_values(by='point')
-yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
-yerr = abs(pd.DataFrame(yerr))
-
-# Establecer el tamaño de la figura
-plt.figure(figsize=(10, 6))
-
-# Índices para el eje x
-x = range(len(df))
-
-# Dibujar los puntos centrales
-plt.plot(x, df['point'], 'o', label='Point')
-
-# Dibujar las bandas como barras de error
-plt.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
-
-# Añadir etiquetas y leyenda
-plt.xlabel('Index')
-plt.ylabel('Value')
-plt.title('Point Values and Confidence Bands')
-plt.legend()
-
-# Mostrar el gráfico
-plt.show()
-```
-
-```{python, eval = FALSE}
-X_learner.ate_interval(xTest_k)
-```
 
 ## Uso de DoubleML
 
-```{python}
+```{python doubleml-import}
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from doubleml import DoubleMLData
 from xgboost import XGBClassifier, XGBRegressor
@@ -1585,20 +1554,33 @@ from doubleml import DoubleMLPLR
 ```
 
 
-*Añadir explicación de DoubleML y cómo funciona básicamente.*
+`DoubleML` se trata de un meta-learner que, a diferencia de los comentados anteriormente, proporciona un marco general para la estimación de efectos causales. Este funciona tanto con tratamientos discretos como continuos, combinando las fortalezas del *Machine Learning* y la Econometría.
 
-```{python}
-def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, grupos=None, curso=None, n_folds=10, show_summary=True):
+DoubleML utiliza un enfoque que combina la regresión de residuos sobre residuos para ortogonalizar el tratamiento y las variables de confusión, el uso de modelos de aprendizaje automático para estimar funciones de nuisance de manera flexible, y la técnica de cross-fitting para abordar problemas de sesgo y sobreajuste. Esto permite obtener estimaciones más precisas y robustas del efecto causal al mitigar los efectos de las variables de confusión y mejorar la generalización del modelo.
+
+En el código se ha creado una función llamada `run_dml_analysis` que utiliza la biblioteca DoubleML para realizar un análisis causal. Se han empleado los modelos de `RandomForest` y `XGB` tanto en su versión de *Regresor* como *Clasificador* (según queramos sacar la media condicional de respuesta o el propensity score, respectivamente).
+Utilizando estos modelos, se ajustan dos tipos de modelos `DoubleMLPLR` (*Double ML with Partially Linear Regression*), uno para cada algoritmo de aprendizaje automático. Luego, se generan resúmenes de los resultados y, si se proporcionan grupos, se calculan los efectos condicionales (GATE) para cada modelo y se visualizan mediante gráficos de barras con intervalos de confianza. 
+
+
+```{python run_dml_analysis-function}
+def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, varGATE = None, grupos=None, curso=None, n_folds=10, show_summary=True):
   
     # Definir datos para DoubleML
     dml_data = DoubleMLData(data, y_col=y_col, d_cols=d_cols)
 
     # Inicializar modelos DoubleMLPLR con RandomForest y ajuste
-    dml_plr_rf = DoubleMLPLR(dml_data, ml_l=ml_l_rf, ml_m=ml_m_rf, n_folds=n_folds)
+    dml_plr_rf = DoubleMLPLR(dml_data, 
+    ml_l=ml_l_rf, # para sacar la media condicional de respuesta
+    ml_m=ml_m_rf, # para sacar el propensity score
+    n_folds=n_folds)
     dml_plr_rf.fit()
 
     # Inicializar modelos DoubleMLPLR con XGBoost y ajuste
-    dml_plr_xgb = DoubleMLPLR(dml_data, ml_l=ml_l_xgb, ml_m=ml_m_xgb, n_folds=n_folds)
+    dml_plr_xgb = DoubleMLPLR(dml_data, 
+    ml_l=ml_l_xgb, 
+    ml_m=ml_m_xgb, 
+    n_folds=n_folds)
+    
     dml_plr_xgb.fit()
     
     # Resumen de resultados de ambos:
@@ -1645,7 +1627,7 @@ def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, 
     # Graficar barras de error para RandomForest
     
       axs[0].errorbar(ci_rf.index, ci_rf.effect, fmt='o', yerr=errors_rf, label='Efecto estimado (IC conjunto) RandomForest')
-      axs[0].set_title('GATEs RandomForest ' + curso, fontsize=titleFontSize)
+      axs[0].set_title('GATEs RandomForest ' + curso + '\nPor ' + varGATE, fontsize=titleFontSize)
       axs[0].set_xlabel('Grupos', fontsize=labelsFontSize)
       axs[0].set_ylabel('Effect and 95%-CI', fontsize=labelsFontSize)
       axs[0].legend(fontsize=legendFontSize)
@@ -1653,7 +1635,7 @@ def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, 
 
     # Graficar barras de error para XGBoost
       axs[1].errorbar(ci_xgb.index, ci_xgb.effect, fmt='o', yerr=errors_xgb, label='Efecto estimado (IC conjunto) XGBoost')
-      axs[1].set_title('GATEs XGBoost ' + curso, fontsize=titleFontSize)
+      axs[1].set_title('GATEs XGBoost ' + curso + '\nPor ' + varGATE, fontsize=titleFontSize)
       axs[1].set_xlabel('Grupos', fontsize=labelsFontSize)
       axs[1].set_ylabel('Effect and 95%-CI', fontsize=labelsFontSize)
       axs[1].legend(fontsize=legendFontSize)
@@ -1666,7 +1648,7 @@ def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, 
 
 ```
 
-```{python, eval = FALSE}
+```{python}
 ml_m_rf = RandomForestRegressor(random_state=seed)
 ml_e_rf = RandomForestClassifier(random_state=seed)
 ml_m_xgb = XGBRegressor(objective="reg:squarederror", random_state=seed)
@@ -1678,7 +1660,9 @@ ml_e_xgb = XGBClassifier(use_label_encoder=False, objective="binary:logistic", e
 #### Efecto del tratamiento por etnia
 
 
-```{python eval = FALSE}
+```{python}
+varGATE = "Etnia"
+
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['ethnicity_grouped'] == 1, starDf_k['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['ethnicity_grouped'] == 1, starDf_1['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_2 = pd.DataFrame(np.column_stack((starDf_2['ethnicity_grouped'] == 1, starDf_2['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
@@ -1694,6 +1678,7 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1705,6 +1690,7 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_1,
                                            curso = "1st Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1716,6 +1702,7 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_2,
                                            curso = "2nd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
@@ -1727,12 +1714,14 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_3,
                                            curso = "3rd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
 ```
 
 #### Efecto del tratamiento por género
 
-```{python eval = FALSE}
+```{python}
+varGATE = "Género"
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['gender'] == 1, starDf_k['gender'] == 0)), columns=['female', 'male'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['gender'] == 1, starDf_1['gender'] == 0)), columns=['female', 'male'])
 grupos_2 = pd.DataFrame(np.column_stack((starDf_2['gender'] == 1, starDf_2['gender'] == 0)), columns=['female', 'male'])
@@ -1747,6 +1736,7 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1758,6 +1748,7 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_1,
                                            curso = "1st Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1769,6 +1760,7 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_2,
                                            curso = "2nd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
@@ -1780,12 +1772,14 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_3,
                                            curso = "3rd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
 ```
 
 #### Efecto del tratamiento por tipo de escuela
 
-```{python eval = FALSE}
+```{python}
+varGATE = "Tipo de escuela"
 # Hay 4 grupos, 'inner-city', 'suburban', 'rural', 'urban'
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['schoolk_inner-city'] == 1, starDf_k['schoolk_suburban'] == 1, starDf_k['schoolk_rural'] == 1, starDf_k['schoolk_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['school1_inner-city'] == 1, starDf_1['school1_suburban'] == 1, starDf_1['school1_rural'] == 1, starDf_1['school1_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
@@ -1802,6 +1796,7 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1813,6 +1808,7 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_1,
                                            curso = "1st Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1824,6 +1820,7 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_2,
                                            curso = "2nd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
@@ -1835,10 +1832,14 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_3,
                                            curso = "3rd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 
 ```
+
+*EXPLICACIONES POR REVISAR DE ADRIÁN*
+
 ETNIA:
 
 Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, el único curso donde el efecto tratamiento no muestra diferencias significativas es en el primer curso como se observa en el gráfico, si bien es cierto que como se describe en el artículo sobre STAR, hubo cambios en la asignación en el primer curso, pudiendo alterar potencialmente los resultados, sin embargo, no tenemos ninguna certidumbre de que el motivo de la no heteregeneidad sea esa.
@@ -1853,4 +1854,4 @@ El p-valor de los modelos DoubleML es significativo al 99% para todos los cursos
 
 
 
-# Referencias {#referencias}
+# Referencias
