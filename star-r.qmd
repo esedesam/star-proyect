@@ -928,13 +928,15 @@ if (!dir.exists("data")) {
 write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
-## Aplicación ténicas de match
+## Aplicación ténicas de matching
 
-Vamos a realizar técnicas de Match IT, una metodología utilizada para mejorar la precisión y eficiencia en la correspondencia de datos. La implementación de Match IT es crucial para garantizar la integridad y calidad de la información en diversos sistemas, facilitando la identificación y consolidación de registros duplicados o inconsistentes. Al aplicar estas técnicas, se optimizan procesos de gestión de datos, lo que resulta en decisiones más informadas y una administración más eficaz de los recursos.
+Si asumimos que ha habido fallos en el protocolo de asignación aleatoria del tratamiento, entonces la condición de independencia de los resultdos potenciales con el estatus de tratamiento no se cumple y el estimador diferenncia de medias es un estimador sesgado. No obstante, podemos considerar que las diferenccias en el estatus de tratamiento emergen por diferencias en las variables de confusión X, anteriormente mencionadas, y que una vez controladas la independencia se restablece (independencia condicional).
 
-Si asumimos que existen variables confusoras en la estimación del ATE, se reqquiere el balanceo de los datos y qu epara una de las variables haya una probabilidad entre 0 y 1 de recibir el tratamiento. Realizamos el mathing e imputamos la respuesta potencial que falta de cada variable (contrafactual).
+Para identificar el efecto causal considerando estas vairables de confusión, se requiere además de la independencia condicional, que haya solapamiento, es decir, que individuos con mismos valores de X tengan una probabilidad positiva de ser participantes y no participantes y que haya equilibrio en las variables de confusión, es decir que la distribución en X de los tratados y los no tratados sean similares. Con tal de conseguir estos objetivos empleamos técnicas de matching.
 
-En primer lugar, para poder aplicar el método de Match IT, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan NAs.
+El matching es un método no paramétrico de pre-tratamiento de la muestra que imputa el resultado potencial no observado de una unidad utilizando resultados observables de unidades similares (en variables de confusión) con estatus de tratamiento opuesto. Esta técnica puede utilizarse para para aumentar la eficiencia de la estimación del efecto causal cuando se tiene una base de datos rica en características observables, si bien no permite eliminar el sesgo que emerge consecuencia de variables de confusión no observadas.
+
+En primer lugar, para poder aplicar el matching, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan NAs.
 
 ```{r match-df-year}
 starDf_k <- starDf %>%
@@ -1013,7 +1015,7 @@ love.plot(star_3_match_object,stats = c("m","var","ks"),
 ```
 Por lo general, observamos que las distribuciones de tratamiento y control ya estaban bastante balanceadas, el proceso mejora las métricas mostradas, pero no excesivamente. Como caso particular a considerar, vemos que la variables experience para el curso grade1 estaba bastante desbalanceada, pudiendo afectar de forma considerable a la estimación del ATE.
 
-Por último, obtenemos los datos correspondientes al proceso de Match It, para poder recuperar el ATE.
+Por último, obtenemos los datos correspondientes al proceso de matching, para poder recuperar el ATE.
 
 ```{r match-data}
 star_k_match_data <- match.data(star_k_match_object)
@@ -1103,7 +1105,7 @@ avg_comparisons(modelo_match_3,variables = "star3",
                       wts = "weights")
 ```
 
-Observamos que, en todos los casos, el efecto causal se reduce respecto a la previa obtención del ATE con los modelos lineales sin usar Match It. Esta ligera reducción puede deberse a la consideración de variables de confusión en el tratameinto. Dado que está mejor identificado el efecto causal, esta estimación debería ser más fiable.
+Observamos que, en todos los casos, el efecto causal se reduce respecto a la previa obtención del ATE con los modelos lineales sin usar matching. Esta ligera reducción puede deberse a la consideración de variables de confusión en el tratameinto. Dado que está mejor identificado el efecto causal, esta estimación debería ser más fiable.
 
 ## Uso de Meta-Learners
 
