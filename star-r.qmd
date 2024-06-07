@@ -14,6 +14,7 @@ format:
     toc_float: yes
     theme: cosmo
     fontcolor: black
+    link-external-newwindow: true
 editor: source
 execute: 
   echo: false
@@ -249,7 +250,7 @@ ggplot(na_percentage_df, aes(x = Column, y = NA_Percentage)) +
   scale_y_continuous(labels = scales::percent_format(scale = 1))
 ```
 
-Esto se debe a la naturaleza de los datos en el que se va a recoger información del estudiante en distintos cursos (que coinciden con los años del estudio). Así pues, encontraremos NAs en un estudiante que por ejemplo estuviese solo en el curso de 'Kindergarten' (jardín de infancia) en uno de las escuelas del estudio y luego se marchase a otras escuelas de fuera de estas (los NAs estarían aquí en los cursos 1st, 2nd, 3rd en todas las variables que eso implica).
+Esto se debe a la naturaleza de los datos en el que se va a recoger información del estudiante en distintos cursos (que coinciden con los años del estudio). Así pues, encontraremos `NA` en un estudiante que por ejemplo estuviese solo en el curso de 'Kindergarten' (jardín de infancia) en uno de las escuelas del estudio y luego se marchase a otras escuelas de fuera de estas (los `NA` estarían aquí en los cursos 1º, 2º, 3º en todas las variables que eso implica).
 
 Consideremos la primera observación del conjunto de datos:
 
@@ -299,7 +300,7 @@ starDf %>%
   labs(x = "Curso", y = "Número de observaciones", fill = "Número de observaciones") +
   scale_fill_gradient(low = "blue", high = "red")
 ```
-Vemos de esta figura que el número de estudiantes no es constante a lo largo de los cursos. Naturalmente, esto no fue un experimento ideal. Podía haber movimiento estudiantil entre escuelas ajenas al experimento. A eso, ha de sumársele que en esos años no era obligatorio ir a `Kindergarten` en el estado de *Tennessee*, por lo que también mucha gente iniciaba su edación en `Primero`.
+Vemos de esta figura que el número de estudiantes no es constante a lo largo de los cursos. Naturalmente, esto no fue un experimento ideal. Podía haber movimiento estudiantil entre escuelas ajenas al experimento. A eso, ha de sumársele que en esos años no era obligatorio ir a `Kindergarten` en el estado de *Tennessee*, por lo que también mucha gente iniciaba su educación en `Primero`.
 
 
 ```{r aed-grupo, fig.cap=capFig("Diagrama de barras del grupo experimental de todos los cursos.", y = "aed-grupo")}
@@ -446,7 +447,7 @@ starDf %>%
 
 En la parte inferior izquierda aparecen las correlaciones de Pearson y en la superior derecha las de Spearman.
 
-Como era de esperar, hay una correlación bastante notable entre las puntuaciones de lectura y matemáticas en todos los cursos. Quien es bueno en una materia, es bueno en la otra (estudia, vamos). El resto de correlaciones entre estas variables mostradas no suelen ser muy altas, aunque sí son en algunos casos significativamente distintas de 0. Por ejemplo, resulta curioso observar cómo hay cierta correlación negativa entre las puntuaciones y el `birth_year` en *KinderGarten* (quizás la diferencia de edad se note más en las edades tempranas). Ocurre lo contrario para el resto de cursos, habiendo una correlación positiva.
+Como era de esperar, hay una correlación bastante notable entre las puntuaciones de lectura y matemáticas en todos los cursos. Quien es bueno en una materia, es bueno en la otra. El resto de correlaciones entre estas variables mostradas no suelen ser muy altas, aunque sí son en algunos casos significativamente distintas de 0. Por ejemplo, resulta curioso observar cómo hay cierta correlación negativa entre las puntuaciones y el `birth_year` en *KinderGarten* (quizás la diferencia de edad se note más en las edades tempranas). Ocurre lo contrario para el resto de cursos, habiendo una correlación positiva.
 
 La experiencia del profesorado también tiene cierta correlación positiva con las puntuaciones, pero muy débil. $\\$
 
@@ -524,7 +525,7 @@ plot_cramer_heatmap(categorical_vars, var_names, "Coeficientes V de Cramer entre
 
 No se observa ninguna asociación fuerte entre el tratamiento y el resto de variables categóricas, lo cual está en concordancia con la asignación aleatoria del tratamiento. Donde sí observamos una mayor asociación es entre el tipo de escuela `school` y otras variables como `lunch`. Esto tiene sentido porque en el estudio se menciona que, la categoría de **schools** "inner-city" se asignó para las escuelas donde los alumnos recibían descuentos en la comida o comidas gratis (esto ya se había comentado anteriormente). 
 
-La relación que aparece entre `technicity` y `school` se fundamenta en que colegios donde había mayor porcentaje **afam** también lo poseen en profesores (esto lo vemos en la próxima Figura, recordando que en **inner-city** había una gran cantidad de estudiantes con `ethnicity = "afam"`). La alta asociación entre **school** y **system** se explica porque debido a que escuelas del mismo tipo pueden pertenecer al mismo sistema escolar.
+La relación que aparece entre `technicity` y `school` se fundamenta en que colegios donde hay mayor porcentaje de estudiantes **afam** también lo poseen en profesores (esto lo vemos en la próxima Figura, recordando que en **inner-city** hay una gran cantidad de estudiantes con `ethnicity = "afam"`). La alta asociación entre **school** y **system** se explica a partir del hecho de que escuelas del mismo tipo pueden pertenecer al mismo sistema escolar.
 
 
 ```{r aed-tethnicityk-schoolk, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro por tipo de escuela en Kindergarten.", y = "aed-tethnicityk-schoolk")}
@@ -594,7 +595,7 @@ starDf %>%
 
 ```
 
-En este caso observamos una diferencia apreciable: la experiencia de los maestros en las clases reducidas suele ser menor.
+En este caso, observamos una diferencia apreciable: la experiencia de los maestros en las clases reducidas suele ser menor.
 
 ```{r school-by-treatment, fig.cap=capFig("Diagrama de barras del tipo de escuela por tratamiento.", y = "school-by-treatment")}
 starDf %>%
@@ -611,7 +612,7 @@ Las distribuciones de tipo de escuela según los distintos tratamientos también
 
 ## Selección de variables confusoras: creación del modelo DAG
 
-El modelo causal que se mostrará a continuación es el que ha dado menos problemas a la hora de recuperar efectos del tratamiento en etapas posteriores (sobre todo en la parte de DoubleML). Son también las variables sobre las que más hincapié se hace en la literatura que hemos consultado [@hanck2021introduction; @Mosteller].
+El modelo causal que se muestra a continuación es el que ha dado menos problemas a la hora de recuperar efectos del tratamiento en etapas posteriores (sobre todo en la parte de DoubleML). Son también las variables sobre las que más hincapié se hace en la literatura que hemos consultado [@hanck2021introduction; @Mosteller].
 
 Estas variables son:
 
@@ -621,7 +622,7 @@ Estas variables son:
 -   Participación en el almuerzo gratuito (`lunch`)
 -   Tipo de escuela (`school`)
 
-La variable `schoolid` veremos posteriormente que otorga mucha de la variabilidad explicada en un modelo de regresión múltiple, pero nos daba severos problemas en estimaciones de ATE con otro tipo de modelo y por ello no la incluimos en el modelo DAG. Al resto de variables como `tethnicity`, `degree` o `ladder` les sucedía algo parecido, pero en este caso tampoco aportaban tanto a la variabilidad explicada en el modelo de regresión.
+Veremos posteriormente que la variable `schoolid` absorbe mucha de la variabilidad explicada en un modelo de regresión múltiple, pero resulta problemática en estimaciones de ATE con otro tipo de modelo y por ello no la incluimos en el modelo DAG. Al resto de variables como `tethnicity`, `degree` o `ladder` les sucedía algo parecido, pero en este caso tampoco aportaban tanto a la variabilidad explicada en el modelo de regresión.
 
 
 ```{r DAGmodel, fig.cap=capFig("Modelo DAG para la recuperación del efecto del tratamiento.", y = "DAGmodel")}
@@ -936,7 +937,7 @@ Para identificar el efecto causal considerando estas vairables de confusión, se
 
 El matching es un método no paramétrico de pre-tratamiento de la muestra que imputa el resultado potencial no observado de una unidad utilizando resultados observables de unidades similares (en variables de confusión) con estatus de tratamiento opuesto. Esta técnica puede utilizarse para para aumentar la eficiencia de la estimación del efecto causal cuando se tiene una base de datos rica en características observables, si bien no permite eliminar el sesgo que emerge consecuencia de variables de confusión no observadas.
 
-En primer lugar, para poder aplicar el matching, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan NAs.
+En primer lugar, para poder aplicar el matching, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan `NA`.
 
 ```{r match-df-year}
 starDf_k <- starDf %>%
@@ -1491,7 +1492,7 @@ plt.savefig("./images/barSLearner_k.png", bbox_inches='tight', dpi=300)
 ![<strong>Figura 40. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barSLearner_k.png)
 
 
-### X-learner
+### X-Learner
 
 En el X-Learner, al igual que en el DR-Learner, se tienen dos etapas para estimar el efecto del tratamiento en una población. En la primera etapa se estiman las funciones *nuisance*, como la propensión al tratamiento y la respuesta potencial condicional, para generar una pseudorespuesta. En la segunda etapa, se ajusta un modelo de regresión usando la pseudorespuesta y las covariables para obtener una estimación final del CATE. Tras esto, puede realizarse la predicción.
 
@@ -2186,5 +2187,22 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
 
 Llama la atención la evolución de los efectos heterogéneos a lo de los cursos. En Kindergarten se aprecia mayor efecto tratamiento en los colegios de los barrios urbanos e inner-city (aunque sí es cierto que hay cierto solapamiento en el intervalo de confianza por debajo). En primer curso, los mayores efectos parece recibirlos el suburbano, mientras que en urbano no queda del todo claro puesto que hay un intervalo de confianza demasiado amplio como para hacer afirmaciones. Por otra parte, en segundo y tercero parece haber un resultado algo mayor para inner-city, aunque de nuevo no podemos sacar conclusiones precipitadas puesto que hay solapamiento en los intervalos de confianza. Urbano ofrece intervalos de confianza demasiado grandes, indicando que no hemos podido terminar de encontrar el modelo que mejor se ajuste a esta clase en dicha variable.
 
+# Conclusiones
+
+En este trabajo hemos realizado un análisis en profundidad del proyecto *STAR*. Mediante el análisis exploratorio de las diferentes características del estudio, hemos observado diferentes relaciones entre variables que se han manifestado en resultados posteriores.
+
+En primer lugar, hemos escogido como efecto la suma de las puntuaciones de matemáticas y lectura de los estudiantes, siendo el tratamiento la pertenencia a una clase normal o a una de tamaño reducido o normal con ayuda. Además, hemos estudiado cada uno de los cuatro cursos por separado,
+
+A partir del primer análisis, hemos desarrollado un DAG adecuado con cinco variables confusoras: género del estudiante, experiencia del profesorado, etnicidad del estudiante, participación en el almuerzo gratuito y tipo de escuela.
+
+Para estimar el efecto del tratamiento, hemos empleado primeramente el estimador naive diferencia de medias y modelos de regresión. Los resultados obtenidos indican que la pertenencia a clases reducidas tiene un efecto positivo sobre las puntuaciones de los estudiantes. Además, la adición de otras variables al modelo no provoca variaciones significativas en los resultados, lo que reafirma la consistencia de los resultados. Por otro lado, la pertenencia a clases normales con ayuda no tiene efecto significativo.
+
+A fin de asegurar la independencia condicional, hemos aplicado técnicas de *matching*, que han reducido las diferencias entre las distribuciones de tratados y no tratados. En consecuencia, hemos observado una disminución del ATE.
+
+Una vez hemos obtenido los datos emparejados, hemos utilizado Meta-Learners y DoubleML para estimar el efecto. El S-Learner ofrece un ATE ligeramente inferior a los resultados de los modelos de regresión, en todo caso compatibles con su intervalo de confianza; mientras que los valores resultantes del X-Learner son de peor calidad, ya que, aunque el valor medio del ATE es similar, el intervalo de confianza es considerablemente más amplio. Por otro lado, DoubleML indica que el efecto es estadísticamente significativo, y mayor para Kindergarten que para el resto de cursos.
+
+También hemos estimado los efectos heterogéneos con el GATE en función de la etnicidad, el género y el tipo de escuela. En el primero, los grupos no caucásicos parecen beneficiarse de un efecto mayor en Kindergarten, mientras que el resto de grupos y cursos no presentan diferencias significativas. El GATE de género tampoco es estadísticamente significativo. Por último, el tipo de escuela sí ha resultado relevante, siendo beneficiados diferentes grupos en función del curso: en Kindergarten, inner-city y urbanos; en 1º, suburbano; y en 2º y 3º, inner-city, aunque menos relevante.
+
+Por tanto, el estudio de los datos del proyecto *STAR* nos permite afirmar que la pertenencia a clases de tamaño reducido resulta en un efecto positivo sobre las puntuaciones de los estudiantes en todos los cursos, especialmente en Kindergarten, respecto a las clases normales. Además, observamos la existencia de algunos grupos heterogéneos para las variables confusoras más relevantes que implican que ciertos grupos de estudiantes se vieron beneficiados por un mayor efecto.
 
 # Referencias
