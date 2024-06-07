@@ -23,7 +23,9 @@ execute:
   include: true
 lang: es
 css: utilities/qmdStyle.css
+bibliography: utilities/bibliography.bib
 ---
+
 
 ```{r setup}
 #| include: false
@@ -35,7 +37,7 @@ if (!require("pacman", quietly = TRUE)) {
 }
 
 # Cargar los paquetes necesarios
-p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally, stringr, vcd)
+p_load(AER, ggplot2, ggthemes, dplyr, tidyr, knitr, stargazer, sandwich, GGally, stringr, vcd, ggdag, kableExtra, reticulate, MatchIt, cobalt, marginaleffects, forcats)
 
 # Ajustes adicionales
 theme_set(
@@ -283,7 +285,6 @@ ggplot(starDf, aes(x = birth)) +
   geom_bar() +
   labs(x = "Trimestre de nacimiento", y = "Frecuencia acumulada")
 ```
-
 ```{r aed-star, fig.cap=capFig("Diagrama de barras del tipo de clase STAR de los estudiantes.", y = "aed-star")}
 starDf %>%
   summarise(
@@ -298,8 +299,8 @@ starDf %>%
   labs(x = "Curso", y = "Número de observaciones", fill = "Número de observaciones") +
   scale_fill_gradient(low = "blue", high = "red")
 ```
-
 Vemos de esta figura que el número de estudiantes no es constante a lo largo de los cursos. Naturalmente, esto no fue un experimento ideal. Podía haber movimiento estudiantil entre escuelas ajenas al experimento. A eso, ha de sumársele que en esos años no era obligatorio ir a `Kindergarten` en el estado de *Tennessee*, por lo que también mucha gente iniciaba su edación en `Primero`.
+
 
 ```{r aed-grupo, fig.cap=capFig("Diagrama de barras del grupo experimental de todos los cursos.", y = "aed-grupo")}
 plotCombinedFeature(starDf, "star", "Grupo experimental", isNumeric = FALSE)
@@ -336,12 +337,12 @@ plotCombinedFeature(starDf, "experience", "Experiencia del maestro (años)")
 ```{r aed-etnicidad-maestro, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro de todos los cursos.", y = "aed-etnicidad-maestro")}
 plotCombinedFeature(starDf, "tethnicity", "Etnicidad del maestro", isNumeric = FALSE)
 ```
-
 Se observan distribuciones muy parecidas entre los distintos cursos.
 
 ```{r aed-id-escuela, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro de todos los cursos.", y = "aed-id-escuela")}
 plotCombinedFeature(starDf, "schoolid", "Identificador de escuela", isNumeric = FALSE, removeNa = TRUE)
 ```
+
 
 ```{r aed-school-ethnicity, fig.cap=capFig("Diagrama de barras de la etnicidad de los estudiantes por tipo de escuela.", y = "aed-school-ethnicity")}
 starDf %>%
@@ -359,12 +360,13 @@ starDf %>%
   theme_minimal()
 ```
 
+
 Puede observarse cómo el tipo de escuela está muy relacionado con la etnicidad de los estudiantes. Esta clasificación en `inner-city`, `suburban`, `rural`, `urban` fue realizada por parte de los diseñadores del estudio, ya que los legisladores no habían definido los tipos. Se procedió de la siguiente manera:
 
 Las `inner-city` y `suburban` se agrupaban en la categoría de *metropolitan* areas.
 
--   `inner-city`: Las escuelas con esta clasificación están definidas como aquellas en las que más de la mitad de estudiantes recibían almuerzo gratuito.
--   `suburban`: Las escuelas con esta clasificación son las que estaban en las áreas más externas de las ciudades metropolitanas.
+- `inner-city`: Las escuelas con esta clasificación están definidas como aquellas en las que más de la mitad de estudiantes recibían almuerzo gratuito.
+- `suburban`: Las escuelas con esta clasificación son las que estaban en las áreas más externas de las ciudades metropolitanas.
 
 En las áreas *no metropolitanas* las escuelas en ciudades con más de 2500 habitantes se clasificaban como `urban` y las escuelas en ciudades con menos de 2500 habitantes se clasificaban como `rural`.
 
@@ -383,7 +385,6 @@ starDf %>%
   facet_wrap(~ curso, scales = "free_x") +
   theme_minimal()
 ```
-
 Puede verse claramente cómo los afroamericanos tenían mayor disposición a tener almuerzo gratuito. Esto seguramente se deba a su condición económica más vulnerable.
 
 Observemos a continuación algunos mapas de correlaciones entre variables.
@@ -403,6 +404,7 @@ starDf <- starDf %>%
 )
 ```
 
+
 ```{r correlation-map-students-k, message = FALSE, fig.cap = capFig("Mapa de correlaciones entre variables de puntuación, experiencia de profesorado y año + trimeste de nacimiento para Kindergarten.", y = "correlation-map-students")}
 starDf %>%    
   select(readk, mathk, experiencek, birth_year) %>%
@@ -411,6 +413,7 @@ starDf %>%
     upper = list(continuous = wrap("cor", method = "pearson", size = 3))
   )
 ```
+
 
 ```{r correlation-map-students-1, message = FALSE, fig.cap = capFig("Mapa de correlaciones entre variables de puntuación, experiencia de profesorado y año + trimeste de nacimiento para 1st grade.", y = "correlation-map-students")}
 starDf %>%
@@ -421,6 +424,7 @@ starDf %>%
   )
 ```
 
+
 ```{r correlation-map-students-2, message = FALSE, fig.cap = capFig("Mapa de correlaciones entre variables de puntuación, experiencia de profesorado y año + trimeste de nacimiento para 2nd grade.", y = "correlation-map-students")}
 starDf %>%
   select(read2, math2, experience2, birth_year) %>%
@@ -429,6 +433,7 @@ starDf %>%
     upper = list(continuous = wrap("cor", method = "pearson", size = 3))
   )
 ```
+
 
 ```{r correlation-map-students-3, message = FALSE, fig.cap = capFig("Mapa de correlaciones entre variables de puntuación, experiencia de profesorado y año + trimeste de nacimiento para 3rd grade.", y = "correlation-map-students")}
 starDf %>%
@@ -445,7 +450,7 @@ Como era de esperar, hay una correlación bastante notable entre las puntuacione
 
 La experiencia del profesorado también tiene cierta correlación positiva con las puntuaciones, pero muy débil. $\\$
 
-A continuación analizamos posibles asociaciones entre variables categóricas para cada curso mediante el estadístico V de Cramer, que está acotado entre 0 y 1, siendo 1 asociación total entre un par de variables categóricas y 0 ninguna asociación.
+A continuación, analizamos posibles **asociaciones entre variables categóricas** para cada curso mediante el estadístico V de Cramer, que está acotado entre 0 y 1, siendo 1 asociación total entre un par de variables categóricas y 0 ninguna asociación. 
 
 ```{r cramer-v-functions}
 # Función para calcular V de Cramer
@@ -490,6 +495,7 @@ plot_cramer_heatmap <- function(data, var_names, title) {
 }
 ```
 
+
 ```{r cramer-v-kindergarten, fig.cap=capFig("Coeficientes V de Cramer entre variables categóricas (Kindergarten).", y = "cramer-v-kindergarten")}
 categorical_vars <- starDf[, c("stark", "gender", "lunchk", "schoolk", "degreek", "ladderk", "tethnicityk", "systemk")]
 var_names <- colnames(categorical_vars)
@@ -509,15 +515,17 @@ var_names <- colnames(categorical_vars)
 plot_cramer_heatmap(categorical_vars, var_names, "Coeficientes V de Cramer entre variables categóricas (Segundo curso)")
 ```
 
+
 ```{r cramer-v-3rd, fig.cap=capFig("Coeficientes V de Cramer entre variables categóricas (Tercer curso).", y = "cramer-v-3rd")}
 categorical_vars <- starDf[, c("star3", "gender", "lunch3", "school3", "degree3", "ladder3", "tethnicity3", "system3")]
 var_names <- colnames(categorical_vars)
 plot_cramer_heatmap(categorical_vars, var_names, "Coeficientes V de Cramer entre variables categóricas (Tercer curso)")
 ```
 
-No se observa ninguna asociación fuerte entre el tratamiento y el resto de variables categóricas, lo cual está en concordancia con la asignación aleatoria del tratamiento. Donde sí observamos una mayor asociación es entre el tipo de escuela `school` y otras variables como `lunch`. Esto tiene sentido porque en el estudio se menciona que, la categoría de **schools** "inner-city" se asignó para las escuelas donde los alumnos recibían descuentos en la comida o comidas gratis (esto ya se había comentado anteriormente).
+No se observa ninguna asociación fuerte entre el tratamiento y el resto de variables categóricas, lo cual está en concordancia con la asignación aleatoria del tratamiento. Donde sí observamos una mayor asociación es entre el tipo de escuela `school` y otras variables como `lunch`. Esto tiene sentido porque en el estudio se menciona que, la categoría de **schools** "inner-city" se asignó para las escuelas donde los alumnos recibían descuentos en la comida o comidas gratis (esto ya se había comentado anteriormente). 
 
 La relación que aparece entre `technicity` y `school` se fundamenta en que colegios donde había mayor porcentaje **afam** también lo poseen en profesores (esto lo vemos en la próxima Figura, recordando que en **inner-city** había una gran cantidad de estudiantes con `ethnicity = "afam"`). La alta asociación entre **school** y **system** se explica porque debido a que escuelas del mismo tipo pueden pertenecer al mismo sistema escolar.
+
 
 ```{r aed-tethnicityk-schoolk, fig.cap=capFig("Diagrama de barras de la etnicidad del maestro por tipo de escuela en Kindergarten.", y = "aed-tethnicityk-schoolk")}
 starDf %>%
@@ -555,6 +563,7 @@ starDf %>%
 
 Vemos que las distribuciones de género son muy similares para los distintos tratamientos.
 
+
 ```{r ethnicity-by-treatment, fig.cap=capFig("Diagrama de barras de la etnicidad de los estudiantes por tratamiento", y = "ethnicity-by-treatment")}
 # Agrupar ethnicity en cauc, afam y other
 starDf$ethnicity_grouped <- ifelse(starDf$ethnicity == "cauc", "cauc", "afam + other")
@@ -571,6 +580,7 @@ starDf %>%
 ```
 
 En la nueva variable `ethnicity_grouped` las distribuciones también son similares.
+
 
 ```{r experience-by-treatment, fig.cap=capFig("Boxplot de la experiencia del maestro por tratamiento.", y = "experience-by-treatment")}
 starDf %>%
@@ -599,15 +609,52 @@ starDf %>%
 
 Las distribuciones de tipo de escuela según los distintos tratamientos también son de un vistazo bastante similares.
 
-## Selección de variables confusoras
+## Selección de variables confusoras: creación del modelo DAG
 
-Con la finalidad de diseñar un modelo causal, a continuación vamos a comprobar qué variables son más relevantes en un modelo de regresión lineal múltiple que prediga la respuesta al tratamiento, ya que las variables más relevantes pueden ser candidatas a variables confusoras del modelo causal, o explicar parte de la variabilidad de la respuesta.
+El modelo causal que se mostrará a continuación es el que ha dado menos problemas a la hora de recuperar efectos del tratamiento en etapas posteriores (sobre todo en la parte de DoubleML). Son también las variables sobre las que más hincapié se hace en la literatura que hemos consultado [@hanck2021introduction; @Mosteller].
 
-Para determinar si estas variables son significativas en la predicción la función `lm()` realiza un test t-Student sobre cada uno de los coeficientes de la regresión. Puesto que vamos a realizar un análisis independiente para cada curso escolar, planteamos cuatro modelos distintos, uno para cada curso, donde tanto las variables como la respuesta seleccionadas se corresponden a su curso correspondiente.
+Estas variables son:
+
+-   Género del estudiante (`gender`)
+-   Experiencia del profesorado (`experience`)
+-   Etnicidad del estudiante (`ethnicity`)
+-   Participación en el almuerzo gratuito (`lunch`)
+-   Tipo de escuela (`school`)
+
+La variable `schoolid` veremos posteriormente que otorga mucha de la variabilidad explicada en un modelo de regresión múltiple, pero nos daba severos problemas en estimaciones de ATE con otro tipo de modelo y por ello no la incluimos en el modelo DAG. Al resto de variables como `tethnicity`, `degree` o `ladder` les sucedía algo parecido, pero en este caso tampoco aportaban tanto a la variabilidad explicada en el modelo de regresión.
+
+
+```{r DAGmodel, fig.cap=capFig("Modelo DAG para la recuperación del efecto del tratamiento.", y = "DAGmodel")}
+dag <- dagify(
+  mark ~ star + gender + experience + ethnnicity + lunch + school,
+  star ~ gender + experience + ethnnicity + lunch + school,
+  exposure = "star", 
+  outcome = "mark"
+)
+
+dag_data <- tidy_dagitty(dag) %>%
+  mutate(color = case_when(
+    name == "star" ~ "blue",
+    name == "mark" ~ "green"
+  ))
+
+ggdag(dag_data) +
+  geom_dag_edges() + 
+  geom_dag_node(aes(color = color), size = 15) + 
+  theme_dag_blank() + #
+  scale_color_identity() + 
+  labs(title = "Diagrama Acíclico Dirigido (DAG)",
+       subtitle = "Mecanismo Generador de Datos") +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        plot.subtitle = element_text(size = 12),
+        plot.caption = element_text(size = 10)) +
+  geom_dag_text(aes(label = name), size = 4, color = "red") 
+
+```
 
 # Análisis del efecto del tratamiento
 
-Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso. Además, calcularemos el percentil de esta variable para cada curso.
+Crearemos en primer lugar una nueva variable que sea la suma de las puntuaciones de lectura y matemáticas para cada curso (el `mark` mostrado anteriormente en el DAG). Además, calcularemos el percentil de esta variable (`markPerc`).
 
 ```{r mark-variables}
 #convertir_a_cuartiles <- function(datos) {
@@ -641,6 +688,7 @@ starDf$markPerc2 <- round(ecdf(starDf$mark2)(starDf$mark2) * 100, 1)
 starDf$markPerc3 <- round(ecdf(starDf$mark3)(starDf$mark3) * 100, 1)
 ```
 
+
 ## Estimación naive del efecto del tratamiento
 
 Para obtener una primera estimación del efecto medio del tratamiento (ATE) para cada curso podemos emplear el estimador diferencia en medias (DIM), definido como el valor promedio de la respuesta de los tratados menos el valor promedio de la respuesta para los no tratados. En ausencia de independencia, independencia condicional o asigación aleatoria del tratamiento, este es un estimador sesgado y es distinto al efecto medio del tratamiento.
@@ -666,7 +714,7 @@ colnames(naiveEstimates) <- c("K", "1", "2", "3")
 kable(naiveEstimates, caption = capTab("Estimaciones naive del efecto del tratamiento para los diferentes cursos"))
 ```
 
-Estos resultados son exactamente los mismos que los que se mostrarán a continuación con el modelo básico de regresión lineal. Sin embargo, lo siguiente será más riguroso al incluir también errores y cuestiones de significancia.
+Estos resultados son exactamente los mismos que los que se mostrarán a continuación con el modelo básico de regresión lineal. Sin embargo, lo siguiente será más riguroso al incluir también estimaciones del error y cuestiones de significancia.
 
 ## Modelos de regresión
 
@@ -678,9 +726,10 @@ $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClas
 
 donde $Y$ es la variable respuesta que nos será de interés, $\beta_0$ es el intercepto, $\beta_1$ es el indicador de la clase pequeña, $\beta_2$ es el indicador de la clase regular con ayuda. $\epsilon$ es el término de ruido usual incorporado en el modelo.
 
-Se toma en primer lugar a $Y = \text{mark}$, la suma de las puntuaciones de lectura y matemáticas (read + math).
+Se toma en primer lugar a $Y = \text{mark}$, la suma de las puntuaciones de lectura y matemáticas (`read` + `math`).
 
 Se calculan a continuación modelos lineales de regresión siguiendo la expresión anterior para cada uno de los cursos. Se calcularán también los errores estándar robustos para cada uno de los coeficientes (uso de la función `vcovHC` que contiene la matriz de covarianza robusta de los coeficientes estimados). Estos se utilizan para corregir los problemas de heterocedasticidad (cuando la varianza de los errores no es constante) en los modelos de regresión.
+
 
 ```{r mean-differences-basicModel}
 basicModelk <- lm(markK ~ stark, data = starDf)
@@ -709,23 +758,21 @@ html_basicModel <- stargazer(basicModelk, basicModel1, basicModel2, basicModel3,
 
 # quitar primer lista de la tabla esta
 html_basicModel <- html_basicModel[2:length(html_basicModel)]
+
+# Concatenar todo el html para no tener una lista de strings
+html_basicModel <- paste(html_basicModel, collapse = "")
 ```
 
 `r html_basicModel`
 
-Los resultados de la Tabla anterior dejan claro que hay un incremento del rendimiento del estudiante cuando está en clases reducidas (ver valores de los coeficientes, que además son muy significativos '\*\*\*'). Las estimaciones están entre 13.899 y 29.781, si bien es cierto que el efecto en el curso 1 se separa un poco de los demás. Esto podría deberse a que en alguno de los años del programa los alumnos de la clase regular obtuvieran resultados bastante peores en comparación de los de las otras clases (ya que vemos que hay un efecto incluso notable con la clase regular + ayuda que en el resto no se ve).
+
+Los resultados de la Tabla anterior dejan claro que hay un incremento del rendimiento del estudiante cuando está en clases reducidas (ver valores de los coeficientes, que además son muy significativos '***'). Las estimaciones están entre 13.899 y 29.781, si bien es cierto que el efecto en el curso 1 se separa un poco de los demás. Esto podría deberse a que en ese año en particular los resultados de la case regular fueron bastante peores en comparación de los de las otras clases (ya que vemos que hay un efecto incluso notable con la clase regular + ayuda que en el resto no se ve).
 
 ### Modelos con más variables
 
 Buscaremos añadir más variables para ver si puede mejorarse la variación observada en la variable dependiente (la suma de las puntuaciones de lectura y matemáticas). Además, se intenta de esta manera intengar mitigar o resolver posibles problemas en una asignación no totalmente aleatoria de los tratamientos.
 
-A la vista de las variables con las que contamos, se añaden las siguientes como previsión de posible mejora. Estas cuentan con información de estudiante, profesorado y escuela:
-
--   Género del estudiante (`Gender`)
--   Etnicidad del estudiante (`Ethnicity_grouped`)
--   Experiencia del maestro (`Experience`)
--   Almuerzo gratuito (`Lunch`)
--   Tipo de escuela (`School`)
+Se añaden las variables comentadas anteriormente en el DAG, así como la variable `schoolId` que aumenta mucho el valor de la variabilidad explicada. Los modelos son los siguientes:
 
 Haremos distintos modelos incluyendo más o menos variables de las mostradas. Concretamente:
 
@@ -735,21 +782,25 @@ Modelo 2: $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{R
 
 Modelo 3: $Y = \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{School} \epsilon$
 
-Modelo 4: \begin{equation}
+
+Modelo 4 (el del DAG): 
+\begin{equation}
 \begin{aligned}
 Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{School} \\
 &+ \beta_5 \cdot \text{Gender} + \beta_6 \cdot \text{Lunch} + \beta_7 \cdot \text{EthnicityGrouped} + \epsilon
 \end{aligned}
 \end{equation}
 
-Modelo 5: \begin{equation}
+Modelo 5: 
+\begin{equation}
 \begin{aligned}
 Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{SchoolId} \\
 &+ \epsilon
 \end{aligned}
 \end{equation}
 
-Modelo 6: \begin{equation}
+Modelo 6: 
+\begin{equation}
 \begin{aligned}
 Y &= \beta_0 + \beta_1 \cdot \text{SmallClass} + \beta_2 \cdot \text{RegularClassWithAide} + \beta_3 \cdot \text{Experience} + \beta_4 \cdot \text{SchoolId} \\
 &+ \beta_5 \cdot \text{Gender} + \beta_6 \cdot \text{Lunch} + \beta_7 \cdot \text{EthnicityGrouped} + \epsilon
@@ -761,7 +812,7 @@ Se presentan los resultados solo para el curso de jardín de infancia en aras de
 ```{r mean-differences-advancedModels_k}
 # Using just kindergarten data
 starDf_k <- starDf %>%
-  select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk, schoolidk, tethnicityk) # tethnicity hard to be used
+  select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk, schoolidk, markPerck, tethnicityk)  # tethnicity hard to be used
 
 model2k <- lm(markK ~ stark + experiencek, data = starDf_k)
 model3k <- lm(markK ~ stark + experiencek + schoolk, data = starDf_k)
@@ -778,10 +829,11 @@ rob_se_k <- list(sqrt(diag(vcovHC(basicModelk, type = "HC1"))),
 )
 ```
 
+
 ```{r mean-differences-summaryadvancedModels_k, include = F}
 html_comparisonModels <- stargazer(
   basicModelk, model2k, model3k, model4k, model5k, model6k,
-  title = capTab("Estimación de diferencias: comparación entre modelos"),
+  title = capTab("Estimación de diferencias: comparación entre modelos para Kindergarten"),
   header = FALSE, 
   model.numbers = FALSE,
   omit = "schoolidk",  # Omitir schoolidk
@@ -789,7 +841,7 @@ html_comparisonModels <- stargazer(
   omit.table.layout = "n",
   digits = 3, 
   type = "html",
-  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Modelo 5", "Modelo 6"),
+  column.labels = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4 (DAG)", "Modelo 5", "Modelo 6"),
   dep.var.caption  = "Resultados para Kindergarten",
   dep.var.labels.include = FALSE,
   se = rob_se_k
@@ -803,11 +855,14 @@ html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl =
 html_comparisonModels <- gsub("No(?!.*No)", "Sí", html_comparisonModels, perl = TRUE)
 
 html_comparisonModels <- html_comparisonModels[2:length(html_comparisonModels)]
+
+html_comparisonModels <- paste(html_comparisonModels, collapse = "")
 ```
 
 `r html_comparisonModels`
 
-Las columnas de los Modelos 2 a 5 muestran que la inclusión de variables adicionales de índole estudiantil, docente y escolar no han modificado drásticamente el valor de la estimación del efecto del tratamiento. Continuamos teniendo un valor positivo y significativo para el efecto de la clase pequeña en el rendimiento de los estudiantes, en contraposición al que otorga la ayuda en la clase regular que no es significativo.
+Las columnas de los Modelos 2 a 6 muestran que la inclusión de variables adicionales de índole estudiantil, docente y escolar no han modificado drásticamente el valor de la estimación del efecto del tratamiento.
+Continuamos teniendo un valor positivo y significativo para el efecto de la clase pequeña en el rendimiento de los estudiantes, en contraposición al que otorga la ayuda en la clase regular que no es significativo. 
 
 De todas maneras, estos resultados ayudan a fortalecer el hecho de que lo observado con el modelo básico no sufre demasiado de la posible asignación no aleatoria de los tratamientos. Añadir las variables de identificación aumenta considerablemente el valor del $R^2_\text{ajustado}$, disminuyendo además el valor de los errores estándar de los coeficientes que nos interesan (hay algo más de precisión, por tanto).
 
@@ -856,8 +911,11 @@ summaryBasicModel <- t(round(data.frame(
 ```
 
 ```{r mean-differences-summary-adapted-tab}
-kable(summaryBasicModel, caption = capTab("Estimaciones de efecto del tratamiento normalizadas por desviación estándar muestral"))
+kable(summaryBasicModel, caption = capTab("Estimaciones de efecto del tratamiento normalizadas por desviación estándar muestral para Kindergarten: modelo básico"))
 ```
+
+SSD es la desviación estándar muestral de la variable `mark` para cada curso. Los valores de `Small` y `RegAide` son los incrementos en la nota normalizados por la desviación estándar muestral. Los valores de `SmallSE` y `RegAideSE` son los errores estándar de los coeficientes estimados normalizados por la desviación estándar muestral.
+
 
 La diferencia que otorga estar en la clase reducida está en torno al 0.2 de desviación estándar en incremento de rendimiento, a excepción de lo ocurrido en el curso 1, por lo comentado anteriormente.
 
@@ -870,7 +928,160 @@ if (!dir.exists("data")) {
 write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 ```
 
+## Aplicación ténicas de match
+
+```{r match-df-year}
+starDf_k <- starDf %>%
+              select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(stark != "regular+aide")%>%
+              mutate(stark = fct_drop(stark))
+starDf_1 <- starDf %>%
+              select(gender, ethnicity_grouped, star1, mark1, lunch1, experience1, school1) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(star1 != "regular+aide")%>%
+              mutate(star1 = fct_drop(star1))
+starDf_2 <- starDf %>%
+              select(gender, ethnicity_grouped, star2, mark2, lunch2, experience2, school2) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(star2 != "regular+aide")%>%
+              mutate(star2 = fct_drop(star2))
+starDf_3 <- starDf %>%
+              select(gender, ethnicity_grouped, star3, mark3, lunch3, experience3, school3) %>%
+              filter_all(all_vars(!is.na(.)))%>%
+              filter(star3 != "regular+aide")%>%
+              mutate(star3 = fct_drop(star3))
+```
+
+
+```{r match-object}
+star_k_match_object <- matchit(stark ~ experiencek + lunchk + schoolk + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_k,
+                                estimand = "ATE")
+star_1_match_object <- matchit(star1 ~ experience1 + lunch1 + school1 + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_1,
+                                estimand = "ATE")
+star_2_match_object <- matchit(star2 ~ experience2 + lunch2 + school2 + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_2,
+                                estimand = "ATE")
+star_3_match_object <- matchit(star3 ~ experience3 + lunch3 + school3 + gender + ethnicity_grouped,
+                                method="full",
+                                distance="glm",
+                                data=starDf_3,
+                                estimand = "ATE")
+```
+
+
+```{r match-love-plot}
+love.plot(star_k_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+love.plot(star_1_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+love.plot(star_2_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+love.plot(star_3_match_object,stats = c("m","var","ks"),
+            abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
+            stars = "std")
+```
+
+```{r match-data}
+star_k_match_data <- match.data(star_k_match_object)
+star_1_match_data <- match.data(star_1_match_object)
+star_2_match_data <- match.data(star_2_match_object)
+star_3_match_data <- match.data(star_3_match_object)
+```
+
+```{r match-meandiff-kindergarden}
+modelo_match_k <- glm(markK ~ stark*(experiencek + lunchk + schoolk + gender +  ethnicity_grouped),
+                      data=star_k_match_data,family = gaussian(),
+                      weights = weights)
+
+pred.gformula <- predictions(modelo_match_k,
+                      variables = "stark", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_k_match_data, # ATE
+                      wts = "weights",
+                      by="stark") # variable de agregación
+pred.gformula
+
+avg_comparisons(modelo_match_k,variables = "stark",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_k_match_data,
+                      wts = "weights")
+```
+
+```{r match-meandiff-grade1}
+modelo_match_1 <- glm(mark1 ~ star1*(experience1 + lunch1 + school1 + gender +  ethnicity_grouped),
+                      data=star_1_match_data,family = gaussian(),
+                      weights = weights)
+
+pred.gformula <- predictions(modelo_match_1,
+                      variables = "star1", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_1_match_data, # ATE
+                      wts = "weights",
+                      by="star1") # variable de agregación
+
+pred.gformula
+
+avg_comparisons(modelo_match_1,variables = "star1",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_1_match_data,
+                      wts = "weights")
+
+```
+
+```{r match-meandiff-grade2}
+modelo_match_2 <- glm(mark2 ~ star2*(experience2 + lunch2 + school2 + gender +  ethnicity_grouped),
+                      data=star_2_match_data,family = gaussian(),
+                      weights = weights)
+pred.gformula <- predictions(modelo_match_2,
+                      variables = "star2", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_2_match_data, # ATE
+                      wts = "weights",
+                      by="star2") # variable de agregación
+pred.gformula
+
+avg_comparisons(modelo_match_2,variables = "star2",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_2_match_data,
+                      wts = "weights")
+```
+
+```{r match-meandiff-grade3}
+modelo_match_3 <- glm(mark3 ~ star3*(experience3 + lunch3 + school3 + gender +  ethnicity_grouped),
+                      data=star_3_match_data,family = gaussian(),
+                      weights = weights)
+pred.gformula <- predictions(modelo_match_3,
+                      variables = "star3", # variable para la que generar contrafactuales
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_3_match_data, # ATE
+                      wts = "weights",
+                      by="star3") # variable de agregación
+pred.gformula
+
+avg_comparisons(modelo_match_3,variables = "star3",
+                      vcov = ~subclass,   # estimacion robusta de se
+                      newdata = star_3_match_data,
+                      wts = "weights")
+```
+
 ## Uso de Meta-Learners
+
+Los meta-learners se basan en utilización de métodos ML disponibles diseñados para tareas de regresión o clasificación (no modificados para inferencia causal). Los meta-learners son una manera sencilla de aprovechar los métodos predictivos ML para estimar efectos condicionales. Se agrupan a su vez en métodos para la predicción de la respuesta condicional (S- y T-learner) o aquellos además usan una estimación del *Propensity Score* (p.e. DR- y X-learner).
+
+Se utiliza la librería `econml` [@econml].
+
 
 ```{python libraryLoading}
 # importamos metalearners
@@ -893,8 +1104,37 @@ from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 import os
+#import rpy2.robjects as robjects
 
 import shap
+import pickle
+```
+
+```{python python-fuctions}
+def capTabpy(x):
+    global capTabNo
+    capTabNo += 1
+    fstring = "<strong>Tabla {}. </strong> {}".format(capTabNo, x)
+    string = str(fstring)
+    return string
+
+def capFigpy(x, y):
+    global capFigNo
+    capFigNo += 1
+    fstring = "<strong>Figura {}. </strong> {} \\label{{fig:{}}}".format(capFigNo, x, y)
+    string = str(fstring)
+    return string
+```
+
+```{python}
+capTabNo = 5
+capFigNo = 31
+```
+
+```{python}
+# Crear directorio de images si no existe
+if not os.path.exists("./images"):
+    os.makedirs("./images")
 ```
 
 ```{python seed}
@@ -904,6 +1144,11 @@ seed = 666
 ```{python dfLoading}
 starDf = pd.read_csv("./data/starDf.csv")
 ```
+
+Para la inclusión en los diferentes modelos necesitamos tener las cosas bien preprocesadas, ya que los metalearners solo admiten variables que sean numéricas. Se transformarán las variables categóricas a variables *dummy* y se eliminarán las filas con valores faltantes cuando sea necesario. Un ejemplo del conjunto de datos que tenemos se muestra a continuación. Puede observarse que nos hemos quedado con las variables del modelo DAG que dijimos con anterioridad.
+
+Una cosa relevante de mencionar es que a partir de aquí *nos hemos centrado en evaluar solo el tratamiento de la clase pequeña frente a la clase regular*, ya que se ha visto anteriormente que entre la clase regular y la clase regular con ayuda no parecía haber diferencias significativas.
+
 
 ```{python dfPreprocessing}
 def preprocess_data(df, star_column, experience_column, school_column, lunch_column, ethnicity_column, mark_column):# schoolid_column, tethnicity_column
@@ -948,6 +1193,11 @@ starDf_2 = preprocess_data(starDf, "star2", "experience2", "school2", "lunch2", 
 starDf_3 = preprocess_data(starDf, "star3", "experience3", "school3", "lunch3", "ethnicity_grouped", "mark3")
 ```
 
+```{python showingExample}
+# Mostrar 5 primeras filas
+starDf_k.head()
+```
+
 ```{python dfSplittingforModels}
 Yk = starDf_k["markK"].values
 Xk = starDf_k.drop(columns=["markK", "stark"])
@@ -966,205 +1216,519 @@ X3 = starDf_3.drop(columns=["mark3", "star3"])
 T3 = starDf_3["star3"].values
 ```
 
-```{python }
-print(Tk.mean(), T1.mean(), T2.mean(), T3.mean())
-```
 
-```{python trainTestSplit}
+Dividimos el conjunto de datos en train y test. Se ha optado por una división 80 - 20. Se ha fijado una semilla para que los resultados sean reproducibles.
+
+```{python trainTestSplit, echo = TRUE}
 xTrain_k, xTest_k, tTrain_k, tTest_k, yTrain_k, yTest_k = train_test_split(Xk, Tk, Yk, test_size=0.2, random_state=seed)
+xTrain_1, xTest_1, tTrain_1, tTest_1, yTrain_1, yTest_1 = train_test_split(X1, T1, Y1, test_size=0.2, random_state=seed)
+xTrain_2, xTest_2, tTrain_2, tTest_2, yTrain_2, yTest_2 = train_test_split(X2, T2, Y2, test_size=0.2, random_state=seed)
+xTrain_3, xTest_3, tTrain_3, tTest_3, yTrain_3, yTest_3 = train_test_split(X3, T3, Y3, test_size=0.2, random_state=seed)
 ```
 
-```{python }
-# respuesta-tratamiento
-y0 = yTrain_k[tTrain_k==0]
-y1 = yTrain_k[tTrain_k==1]
-respuesta=[y0,y1]
-etiquetas = ["control","tratados"]
+Se muestra a continuación lo que sería la distribución de la respuesta (`mark`) por estatus de tratamiento para el curso de *Kindergarten*.
 
-plt.figure(figsize=(8, 6))  # Opcional: Define el tamaño de la figura
-plt.boxplot(respuesta, labels=etiquetas)
 
-plt.title('Distribución de la respuesta por estatus de tratamiento')
-plt.ylabel('Valor de la respuesta')
-plt.xlabel('Tratamiento')
+```{python hist-respuesta-tratamiento, fig.cap="<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida) en KinderGarten.", echo=FALSE, message = FALSE, include = FALSE}
+
+# Agrupar los datos por tratamiento
+y0_k = Yk[Tk == 0]
+y1_k = Yk[Tk == 1]
+respuesta_k = [y0_k, y1_k]
+
+y0_1 = Y1[T1 == 0]
+y1_1 = Y1[T1 == 1]
+respuesta_1 = [y0_1, y1_1]
+
+y0_2 = Y2[T2 == 0]
+y1_2 = Y2[T2 == 1]
+respuesta_2 = [y0_2, y1_2]
+
+y0_3 = Y3[T3 == 0]
+y1_3 = Y3[T3 == 1]
+respuesta_3 = [y0_3, y1_3]
+
+etiquetas = ["control", "tratados"]
+
+# Crear los subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Distribución de la respuesta por estatus de tratamiento')
+
+# Gráfico para Kindergarten
+axs[0, 0].boxplot(respuesta_k, labels=etiquetas)
+axs[0, 0].set_title('Kindergarten')
+axs[0, 0].set_ylabel('Valor de la respuesta')
+
+# Gráfico para Primer Grado
+axs[0, 1].boxplot(respuesta_1, labels=etiquetas)
+axs[0, 1].set_title('Primer Grado')
+
+# Gráfico para Segundo Grado
+axs[1, 0].boxplot(respuesta_2, labels=etiquetas)
+axs[1, 0].set_title('Segundo Grado')
+axs[1, 0].set_ylabel('Valor de la respuesta')
+axs[1, 0].set_xlabel('Tratamiento')
+
+# Gráfico para Tercer Grado
+axs[1, 1].boxplot(respuesta_3, labels=etiquetas)
+axs[1, 1].set_title('Tercer Grado')
+axs[1, 1].set_xlabel('Tratamiento')
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.88, hspace=0.5)  # Ajustar espacio entre filas
+
+plt.savefig("./images/boxplotRespuestaTratamiento.png", bbox_inches='tight', dpi=300)
 
 # Mostrar el gráfico
 plt.show()
 ```
 
-```{python}
-# Estimación efecto por diferencia de medias (sesgado)
-y1.mean() - y0.mean()
-```
+![<strong>Figura 32. </strong> Distribución de la respuesta por estatus de tratamiento (clase regular vs clase reducida) en los diferentes cursos.](./images/boxplotRespuestaTratamiento.png)
+
+
 
 ### S-Learner
 
-```{python}
+El S-Learner es un modelo de aprendizaje supervisado que utiliza un único modelo predictivo para estimar tanto el resultado con el tratamiento como sin él. Se entrena concretamente un modelo predictivo usando las características de los individuos y la variable tratamiento como predictores. Luego, este modelo se usa para predecir el resultado bajo ambas condiciones para cada individuo y se calcula la diferencia entre las predicciones para obtener el efecto del tratamiento.
+
+Se estuvo probando con diferentes transformaciones, pero la que mejores resultados pudimos finalmente obtener era utilizando una transformación polinomial de grado 2 (`PolynomialFeatures`) con una regularización Lasso (L1), tras ajustar el valor del hiperparámetro `alpha`.
+
+```{python SLearner-defining, include = FALSE}
 #alpha = 0.2
 #ridge_reg = Ridge(alpha=alpha)
-
 poly = PolynomialFeatures(degree=2, include_bias=True)
 linregLASSO =  Lasso(alpha=0.1)
-#overall_model = make_pipeline(poly, ridge_reg)
-overall_model = make_pipeline(poly, linregLASSO) 
+overall_model = make_pipeline(poly, linregLASSO)
 
-# Instanciamos el S learner
 S_learner = SLearner(overall_model=overall_model)
-
-# Entrenamos S_learner (incluimos la opcion inference=bootstrap para obtener errores estándar)
-S_learner.fit(yTrain_k, tTrain_k, X=xTrain_k, inference="bootstrap")
-
-# Estimamos efectos tratamiento sobre datos de prueba
-S_te = S_learner.effect(xTest_k)
-
-# Histograma de TEs 
-plt.figure(figsize=(8, 6))
-plt.hist(S_te, bins=30, color='blue', alpha=0.7)
-plt.title('Histograma de efectos de tratamiento estimados')
-plt.xlabel('Efecto de tratamiento')
-plt.ylabel('Frecuencia')
-plt.show()
 ```
 
-```{python}
-lb, ub = S_learner.effect_interval(xTest_k)
 
-df = pd.DataFrame({'point': S_te,'lb':lb,'ub':ub})
-df = df.sort_values(by='point')
-yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
-yerr = abs(pd.DataFrame(yerr))
+```{python S-Learner-training, include = FALSE}
+# Inicializar listas para almacenar resultados
+all_te = []
+all_ate_intervals = []
+all_point_estimates = []
+all_lb = []
+all_ub = []
+shap_values = []
 
-# Establecer el tamaño de la figura
-plt.figure(figsize=(10, 6))
+# Listas de datos
+Y_list = [Yk, Y1, Y2, Y3]
+T_list = [Tk, T1, T2, T3]
+X_list = [Xk, X1, X2, X3]
+titles = ['Kindergarten', 'Primer Curso', 'Segundo Curso', 'Tercer Curso']
 
-# Índices para el eje x
-x = range(len(df))
+# Variable para controlar si es la primera iteración
+first_iteration = True
 
-# Dibujar los puntos centrales
-plt.plot(x, df['point'], 'o', label='Point')
+# Entrenar el S-Learner y obtener efectos para cada conjunto de datos
+for Y, T, X in zip(Y_list, T_list, X_list):
 
-# Dibujar las bandas como barras de error
-plt.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+    S_learner.fit(Y, T, X=X, inference="bootstrap")
+    
+    # Estimar efectos de tratamiento
+    S_te = S_learner.effect(X)
+    all_te.append(S_te)
+    
+    # Obtener intervalo de confianza del ATE
+    ate_interval = S_learner.ate_interval(X, T0=0, T1=1)
+    all_ate_intervals.append(ate_interval)
 
-# Añadir etiquetas y leyenda
-plt.xlabel('Index')
-plt.ylabel('Value')
-plt.title('Point Values and Confidence Bands')
-plt.legend()
+    # Obtener intervalos de confianza para cada punto estimado
+    lb, ub = S_learner.effect_interval(X)
+    all_lb.append(lb)
+    all_ub.append(ub)
+    all_point_estimates.append(S_te)
+    
+    # Guardar SHAP values solo en la primera iteración
+    if first_iteration:
+        shap_values = S_learner.shap_values(X)
+        first_iteration = False
+```
+
+```{python TE-SLearner, fig.cap = "<strong> Figura 33. </strong> Histograma de efectos de tratamiento estimados por el S-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Histogramas de efectos de tratamiento estimados', fontsize=16)
+
+# Dibujar histogramas para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    ax.hist(all_te[i], bins=30, color='blue', alpha=0.7)
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Efecto de tratamiento', fontsize=14)
+    ax.set_ylabel('Frecuencia', fontsize=14)
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.9)  # Ajustar el espacio del título
 
 # Mostrar el gráfico
 plt.show()
 ```
+```{python CI-SLearner, fig.cap = "<strong> Figura 34. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos.", echo = FALSE, message = FALSE}
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Estimaciones de efectos de tratamiento y bandas de confianza', fontsize=16)
 
-```{python}
-S_learner.ate_interval(xTest_k, T0=0, T1=1)
+# Dibujar gráficos con barras de error para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    df = pd.DataFrame({'point': all_point_estimates[i], 'lb': all_lb[i], 'ub': all_ub[i]})
+    df = df.sort_values(by='point')
+    yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
+    yerr = abs(pd.DataFrame(yerr))
+
+    # Índices para el eje x
+    x = range(len(df))
+
+    # Dibujar los puntos centrales
+    ax.plot(x, df['point'], 'o', label='Point')
+
+    # Dibujar las bandas como barras de error
+    ax.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+
+    # Añadir etiquetas y leyenda
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Índice', fontsize=14)
+    ax.set_ylabel('TE', fontsize=14)
+    ax.legend()
+
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.9) 
+
+# Mostrar el gráfico
+plt.show()
+```
+Puede observarse que las barras de error son significativamente grandes: resulta bastante incierto estimar el efecto del tratamiento para un individuo a pesar de todos los esfuerzos que hemos hecho por buscar modelos más robustos.
+
+
+```{python ATE-SLearner-table, echo = FALSE, include = FALSE}
+# Crear un DataFrame para una mejor visualización de los intervalos de confianza del ATE
+ate_results = pd.DataFrame({
+    "Curso": ['Kindergarten', 'Primer Curso', 'Segundo Curso', 'Tercer Curso'],
+    "Lower Bound": [interval[0] for interval in all_ate_intervals],
+    "ATE": [S_learner.ate(X) for X in X_list],
+    "Upper Bound": [interval[1] for interval in all_ate_intervals]
+})
+
+
+fig, ax = plt.subplots(figsize=(8, 2))
+ax.axis('off')
+ax.axis('tight')
+
+ax.table(cellText=ate_results.values, colLabels=ate_results.columns, cellLoc='center', loc='center')
+
+plt.tight_layout()
+plt.savefig("./images/ate_intervals_slearner.png", bbox_inches='tight', dpi=300) # guardo porque no se renderiza bien en el RMarkdown y siempre acaba printeando basura :(
+plt.show()
 ```
 
-```{python}
-shap_values = S_learner.shap_values(xTest_k)
+![<strong>Figura 35. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el S-learner.](./images/ate_intervals_slearner.png)
 
+Los resultados para el ATE están en la línea de lo que obtuvimos con los modelos de regresión anteriores, quizás algo por debajo. Sin embargo, si tenemos en cuenta los intervalos de confianza, sí que caería en lo que antes vimos.
+
+Podemos a continuación observar los **SHAP values** (*Shapley Additive Explanations*), de tal forma que podamos entender el impacto de cada característica en la predicción de un modelo. Se mostrarán los resultados solo para Kindergarten en aras de la brevedad.
+
+El gráfico *waterfall* muestra cómo se combinan los efectos de las características individuales para llegar a la predicción final. Cada barra representa el SHAP value de una característica, y se ordenan de mayor a menor impacto en la predicción.
+
+```{python, echo = FALSE, include = FALSE}
 plt.figure(figsize=(20, 8))
-shap.plots.waterfall(shap_values['Y0']['T0_1.0'][1], max_display=20, show=False)
+shap.plots.waterfall(shap_values['Y0']['T0_1.0'][0], max_display=20, show=False)
 
-# Crear directorio de images si no existe
-if not os.path.exists("./images"):
-    os.makedirs("./images")
-    
 plt.savefig("./images/wfallSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![Test](./images/wfallSLearner_k.png)
+![<strong>Figura 36. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallSLearner_k.png)
 
-```{python}
+
+El gráfico de barras muestra la importancia media de cada característica en el modelo. Este gráfico se crea sumando los valores absolutos de los SHAP values de cada característica a lo largo de todas las observaciones.
+
+```{python, echo=FALSE, include = FALSE}
 plt.figure(figsize=(20, 8))
 shap.plots.bar(shap_values['Y0']['T0_1.0'], show = False)
 
 plt.savefig("./images/barSLearner_k.png", bbox_inches='tight', dpi=300)
 ```
 
-![Testing](./images/barSLearner_k.png)
+![<strong>Figura 37. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barSLearner_k.png)
+
 
 ### X-learner
 
-```{python}
+En el X-Learner, al igual que en el DR-Learner, se tienen dos etapas para estimar el efecto del tratamiento en una población. En la primera etapa se estiman las funciones *nuisance*, como la propensión al tratamiento y la respuesta potencial condicional, para generar una pseudorespuesta. En la segunda etapa, se ajusta un modelo de regresión usando la pseudorespuesta y las covariables para obtener una estimación final del CATE. Tras esto, puede realizarse la predicción.
+
+En nuestro caso, usaremos el XLearner incorporando los modelos de `GradientBoostingRegressor` y `RandomForestClassifier` para las funciones nuisance y generación de pseudorespuesta. Se ha fijado un número de estimadores de 100 y una profundidad máxima de 10 para el modelo de regresión y de 6 para el modelo de clasificación.
+
+
+
+```{python XLearner-defining, include = FALSE}
 n = 10000
-# Instancia de X learner
-models = GradientBoostingRegressor(n_estimators=100, max_depth=10, min_samples_leaf=int(n/100))
+models = GradientBoostingRegressor(n_estimators=100, max_depth=10, min_samples_leaf=int(n/100), random_state=seed)
 propensity_model = RandomForestClassifier(n_estimators=100, max_depth=6, 
-                                                  min_samples_leaf=int(n/100))
+                                                  min_samples_leaf=int(n/100), random_state=seed)
                                                   
 X_learner = XLearner(models=models, propensity_model=propensity_model)
-# Train X_learner
-X_learner.fit(yTrain_k, tTrain_k, X=xTrain_k,inference="bootstrap")
-# Estimate treatment effects on test data
-X_te = X_learner.effect(xTest_k)
+```
 
-# Histograma de TEs 
-plt.figure(figsize=(8, 6))
-plt.hist(X_te, bins=30, color='blue', alpha=0.7)
-plt.title('Histograma de efectos de tratamiento estimados')
-plt.xlabel('Efecto de tratamiento')
-plt.ylabel('Frecuencia')
-plt.show()
+```{python XLearner-training, include = FALSE, eval = FALSE}
+all_te_x = []  
+all_ate_intervals_x = []  
+all_point_estimates_x = []  
+all_lb_x = []  
+all_ub_x = []  
+shap_values_x = []  
+
+first_iteration_x = True
+
+# Entrenar el XLearner y obtener efectos para cada conjunto de datos
+for Y, T, X in zip(Y_list, T_list, X_list):
+
+    X_learner.fit(Y, T, X=X, inference="bootstrap")
+    
+    # Estimar efectos de tratamiento
+    X_te = X_learner.effect(X)
+    all_te_x.append(X_te)
+    
+    # Obtener intervalo de confianza del ATE
+    ate_interval_x = X_learner.ate_interval(X, T0=0, T1=1)
+    all_ate_intervals_x.append(ate_interval_x)
+
+    # Obtener intervalos de confianza para cada punto estimado
+    lb_x, ub_x = X_learner.effect_interval(X)
+    all_lb_x.append(lb_x)
+    all_ub_x.append(ub_x)
+    all_point_estimates_x.append(X_te)
+    
+    # Guardar SHAP values solo en la primera iteración
+    
+    if first_iteration_x:
+        shap_values_x = X_learner.shap_values(X)
+        first_iteration_x = False
 ```
 
 ```{python}
-lb, ub = X_learner.effect_interval(xTest_k)
+# Crear si no existe ./data/XLearner/
+if not os.path.exists("./data/XLearner/"):
+    os.makedirs("./data/XLearner/")
+```
 
-df = pd.DataFrame({'point': S_te,'lb':lb,'ub':ub})
-df = df.sort_values(by='point')
-yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
-yerr = abs(pd.DataFrame(yerr))
 
-# Establecer el tamaño de la figura
-plt.figure(figsize=(10, 6))
+```{python}
+def guardar_listas(all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x):
+    # Guardar all_te_x
+    with open('./data/XLearner/all_te_x.pkl', 'wb') as file:
+        pickle.dump(all_te_x, file)
+    
+    # Guardar all_ate_intervals_x
+    with open('./data/XLearner/all_ate_intervals_x.pkl', 'wb') as file:
+        pickle.dump(all_ate_intervals_x, file)
+    
+    # Guardar all_point_estimates_x
+    with open('./data/XLearner/all_point_estimates_x.pkl', 'wb') as file:
+        pickle.dump(all_point_estimates_x, file)
+    
+    # Guardar all_lb_x
+    with open('./data/XLearner/all_lb_x.pkl', 'wb') as file:
+        pickle.dump(all_lb_x, file)
+    
+    # Guardar all_ub_x
+    with open('./data/XLearner/all_ub_x.pkl', 'wb') as file:
+        pickle.dump(all_ub_x, file)
+    
+    # Guardar shap_values_x
+    with open('./data/XLearner/shap_values_x.pkl', 'wb') as file:
+        pickle.dump(shap_values_x, file)
+```
 
-# Índices para el eje x
-x = range(len(df))
+```{python, eval = FALSE}
+guardar_listas(all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x)
+```
 
-# Dibujar los puntos centrales
-plt.plot(x, df['point'], 'o', label='Point')
+```{python}
+def cargar_listas():
+    # Cargar all_te_x
+    with open('./data/XLearner/all_te_x.pkl', 'rb') as file:
+        all_te_x = pickle.load(file)
+    
+    # Cargar all_ate_intervals_x
+    with open('./data/XLearner/all_ate_intervals_x.pkl', 'rb') as file:
+        all_ate_intervals_x = pickle.load(file)
+    
+    # Cargar all_point_estimates_x
+    with open('./data/XLearner/all_point_estimates_x.pkl', 'rb') as file:
+        all_point_estimates_x = pickle.load(file)
+    
+    # Cargar all_lb_x
+    with open('./data/XLearner/all_lb_x.pkl', 'rb') as file:
+        all_lb_x = pickle.load(file)
+    
+    # Cargar all_ub_x
+    with open('./data/XLearner/all_ub_x.pkl', 'rb') as file:
+        all_ub_x = pickle.load(file)
+    
+    # Cargar shap_values_x
+    with open('./data/XLearner/shap_values_x.pkl', 'rb') as file:
+        shap_values_x = pickle.load(file)
+    
+    return all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x
+```
 
-# Dibujar las bandas como barras de error
-plt.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+```{python, eval = FALSE}
+# Guardar X_learner
+with open('./data/XLearner/X_learner.pkl', 'wb') as file:
+    pickle.dump(X_learner, file)
+```
 
-# Añadir etiquetas y leyenda
-plt.xlabel('Index')
-plt.ylabel('Value')
-plt.title('Point Values and Confidence Bands')
-plt.legend()
+
+```{python loadingListsAndModel}
+all_te_x, all_ate_intervals_x, all_point_estimates_x, all_lb_x, all_ub_x, shap_values_x = cargar_listas()
+
+with open('./data/XLearner/X_learner.pkl', 'rb') as file:
+    X_learner = pickle.load(file)
+```
+
+
+```{python, fig.cap = "<strong> Figura 38. </strong> Histograma de efectos de tratamiento estimados por el X-Learner en los diferentes cursos.", echo = FALSE, message = FALSE}
+# Crear figura y subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Histogramas de efectos de tratamiento estimados (XLearner)', fontsize=16)
+
+# Dibujar histogramas para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    ax.hist(all_te_x[i], bins=30, color='blue', alpha=0.7)
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Efecto de tratamiento', fontsize=14)
+    ax.set_ylabel('Frecuencia', fontsize=14)
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.9)  # Ajustar el espacio del título
 
 # Mostrar el gráfico
 plt.show()
 ```
 
-```{python}
-X_learner.ate_interval(xTest_k)
+```{python, fig.cap = "<strong> Figura 39. </strong> Estimaciones de efectos de tratamiento y bandas de confianza en los diferentes cursos (XLearner).", echo = FALSE, message = FALSE}
+# Crear figura y subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+fig.suptitle('Estimaciones de efectos de tratamiento y bandas de confianza (XLearner)', fontsize=16)
+
+# Dibujar gráficos con barras de error para cada conjunto de datos
+for i, ax in enumerate(axs.flat):
+    df = pd.DataFrame({'point': all_point_estimates_x[i], 'lb': all_lb_x[i], 'ub': all_ub_x[i]})
+    df = df.sort_values(by='point')
+    yerr = [df['point'] - df['lb'], df['ub'] - df['point']]
+    yerr = abs(pd.DataFrame(yerr))
+
+    # Índices para el eje x
+    x = range(len(df))
+
+    # Dibujar los puntos centrales
+    ax.plot(x, df['point'], 'o', label='Point')
+
+    # Dibujar las bandas como barras de error
+    ax.errorbar(x, df['point'], yerr=yerr.values, fmt='o', ecolor='lightgray', capsize=5, label='Confidence interval')
+
+    # Añadir etiquetas y leyenda
+    ax.set_title(titles[i], fontsize=16)
+    ax.set_xlabel('Índice', fontsize=14)
+    ax.set_ylabel('TE', fontsize=14)
+    ax.legend()
+
+# Ajustar diseño
+plt.tight_layout()
+plt.subplots_adjust(top=0.9)
+
+# Mostrar el gráfico
+plt.show()
 ```
+
+```{python ATE-XLearner-table, echo = FALSE, include = FALSE}
+ate_results_x = pd.DataFrame({
+    "Curso": ['Kindergarten', 'Primer Curso', 'Segundo Curso', 'Tercer Curso'],
+    "Lower Bound": [interval[0] for interval in all_ate_intervals_x],
+    "ATE": [X_learner.ate(X) for X in X_list],
+    "Upper Bound": [interval[1] for interval in all_ate_intervals_x]
+})
+
+# Crear figura y eje para la tabla
+fig, ax = plt.subplots(figsize=(8, 2))
+ax.axis('off')
+ax.axis('tight')
+
+# Crear la tabla y mostrarla
+ax.table(cellText=ate_results_x.values, colLabels=ate_results_x.columns, cellLoc='center', loc='center')
+
+# Ajustar el diseño y mostrar la tabla
+plt.tight_layout()
+plt.savefig("./images/ate_intervals_xlearner.png", bbox_inches='tight', dpi=300)
+plt.show()
+```
+
+![<strong>Figura 40. </strong> Intervalos de confianza para el ATE en los diferentes cursos usando el X-learner.](./images/ate_intervals_xlearner.png)
+
+El valor central para el ATE en este caso está en torno a lo que habíamos obtenido en ocasiones anteriores. Sin embargo, vemos que los intervalos de confianza son muchísimo peores que en el caso anterior. No hemos podido finalmente ajustar el modelo lo suficientemente bien como para que dé resultados más fiables.
+
+
+```{python echo = FALSE, include = FALSE}
+plt.figure(figsize=(20, 8))
+shap.plots.waterfall(shap_values_x['Y0']['T0_1.0'][0], max_display=20, show=False)
+
+plt.savefig("./images/wfallXLearner_k.png", bbox_inches='tight', dpi=300)
+```
+
+![<strong>Figura 41. </strong> Gráfico de waterfall que indica cómo se da la combinación para la predicción final (Kindergarten) (Para la primera muestra).](./images/wfallXLearner_k.png)
+
+
+
+```{python echo = FALSE, include = FALSE}
+plt.figure(figsize=(20, 8))
+shap.plots.bar(shap_values_x['Y0']['T0_1.0'], show = False)
+
+plt.savefig("./images/barXLearner_k.png", bbox_inches='tight', dpi=300)
+```
+
+![<strong>Figura 42. </strong> Gráfico de barras con la importancia de cada característica (Kindergarten).](./images/barXLearner_k.png)
 
 ## Uso de DoubleML
 
-```{python}
+```{python doubleml-import}
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from doubleml import DoubleMLData
 from xgboost import XGBClassifier, XGBRegressor
 from doubleml import DoubleMLPLR
 ```
 
-*Añadir explicación de DoubleML y cómo funciona básicamente.*
 
-```{python}
-def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, grupos=None, curso=None, n_folds=10, show_summary=True):
+`DoubleML` se trata de un meta-learner que, a diferencia de los comentados anteriormente, proporciona un marco general para la estimación de efectos causales. Este funciona tanto con tratamientos discretos como continuos, combinando las fortalezas del *Machine Learning* y la Econometría.
+
+DoubleML utiliza un enfoque que combina la regresión de residuos sobre residuos para ortogonalizar el tratamiento y las variables de confusión, el uso de modelos de aprendizaje automático para estimar funciones de nuisance de manera flexible, y la técnica de cross-fitting para abordar problemas de sesgo y sobreajuste. Esto permite obtener estimaciones más precisas y robustas del efecto causal al mitigar los efectos de las variables de confusión y mejorar la generalización del modelo.
+
+En el código se ha creado una función llamada `run_dml_analysis` que utiliza la biblioteca DoubleML para realizar un análisis causal. Se han empleado los modelos de `RandomForest` y `XGB` tanto en su versión de *Regresor* como *Clasificador* (según queramos sacar la media condicional de respuesta o el propensity score, respectivamente).
+Utilizando estos modelos, se ajustan dos tipos de modelos `DoubleMLPLR` (*Double ML with Partially Linear Regression*), uno para cada algoritmo de aprendizaje automático. Luego, se generan resúmenes de los resultados y, si se proporcionan grupos, se calculan los efectos condicionales (GATE) para cada modelo y se visualizan mediante gráficos de barras con intervalos de confianza. 
+
+
+```{python run_dml_analysis-function}
+def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb,seed, varGATE = None, grupos=None, curso=None, n_folds=10, show_summary=False):
+  
+    np.random.seed(seed)
   
     # Definir datos para DoubleML
-    dml_data = DoubleMLData(data, y_col=y_col, d_cols=d_cols, x_cols = None)
+    dml_data = DoubleMLData(data, y_col=y_col, d_cols=d_cols)
 
     # Inicializar modelos DoubleMLPLR con RandomForest y ajuste
-    dml_plr_rf = DoubleMLPLR(dml_data, ml_l=ml_l_rf, ml_m=ml_m_rf, n_folds=n_folds)
+    dml_plr_rf = DoubleMLPLR(dml_data, 
+    ml_l=ml_l_rf, # para sacar la media condicional de respuesta
+    ml_m=ml_m_rf, # para sacar el propensity score
+    n_folds=n_folds)
     dml_plr_rf.fit()
 
     # Inicializar modelos DoubleMLPLR con XGBoost y ajuste
-    dml_plr_xgb = DoubleMLPLR(dml_data, ml_l=ml_l_xgb, ml_m=ml_m_xgb, n_folds=n_folds)
+    dml_plr_xgb = DoubleMLPLR(dml_data, 
+    ml_l=ml_l_xgb, 
+    ml_m=ml_m_xgb, 
+    n_folds=n_folds)
+    
     dml_plr_xgb.fit()
     
     # Resumen de resultados de ambos:
@@ -1211,7 +1775,7 @@ def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, 
     # Graficar barras de error para RandomForest
     
       axs[0].errorbar(ci_rf.index, ci_rf.effect, fmt='o', yerr=errors_rf, label='Efecto estimado (IC conjunto) RandomForest')
-      axs[0].set_title('GATEs RandomForest ' + curso, fontsize=titleFontSize)
+      axs[0].set_title('GATEs RandomForest ' + curso + '\nPor ' + varGATE, fontsize=titleFontSize)
       axs[0].set_xlabel('Grupos', fontsize=labelsFontSize)
       axs[0].set_ylabel('Effect and 95%-CI', fontsize=labelsFontSize)
       axs[0].legend(fontsize=legendFontSize)
@@ -1219,7 +1783,7 @@ def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, 
 
     # Graficar barras de error para XGBoost
       axs[1].errorbar(ci_xgb.index, ci_xgb.effect, fmt='o', yerr=errors_xgb, label='Efecto estimado (IC conjunto) XGBoost')
-      axs[1].set_title('GATEs XGBoost ' + curso, fontsize=titleFontSize)
+      axs[1].set_title('GATEs XGBoost ' + curso + '\nPor ' + varGATE, fontsize=titleFontSize)
       axs[1].set_xlabel('Grupos', fontsize=labelsFontSize)
       axs[1].set_ylabel('Effect and 95%-CI', fontsize=labelsFontSize)
       axs[1].legend(fontsize=legendFontSize)
@@ -1239,11 +1803,72 @@ ml_m_xgb = XGBRegressor(objective="reg:squarederror", random_state=seed)
 ml_e_xgb = XGBClassifier(use_label_encoder=False, objective="binary:logistic", eval_metric="logloss", random_state=seed)
 ```
 
+```{python}
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
+                                           y_col='markK',
+                                           d_cols='stark',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
+                                           grupos=None,
+                                           curso = "Kindergarten",
+                                           varGATE = varGATE,
+                                           n_folds=10,
+                                           show_summary=True)
+                                           
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
+                                           y_col='mark1',
+                                           d_cols='star1',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
+                                           grupos=None,
+                                           curso = "1st Grade",
+                                           varGATE = varGATE,
+                                           n_folds=10,
+                                           show_summary=True)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
+                                           y_col='mark2',
+                                           d_cols='star2',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
+                                           grupos=None,
+                                           curso = "2nd Grade",
+                                           varGATE = varGATE,
+                                           n_folds=10,
+                                           show_summary=True)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
+                                           y_col='mark3',
+                                           d_cols='star3',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
+                                           grupos=None,
+                                           curso = "3rd Grade",
+                                           varGATE = varGATE,
+                                           n_folds=10,
+                                           show_summary=True)
+```
+El valor de los coeficientes estimados por el modelo de DoubleML, indicada que con un p-valor << 0.05, existe un efecto estadísticamente significativo de la aplicación del tratamiento sobre la nota para todos los cursos, siendo los alumnos de primer grado donde este efecto sería mayor mientras que en segundo y tercero los coeficientes presentan valores similares, de entre 12 y 14 puntos, para kindergarten si observamos un incremento mayor, de entre 15 y 17 puntos.
+
 ### Group Average Treatment Effects (GATEs)
 
 #### Efecto del tratamiento por etnia
 
 ```{python}
+varGATE = "Etnia"
+
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['ethnicity_grouped'] == 1, starDf_k['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['ethnicity_grouped'] == 1, starDf_1['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
 grupos_2 = pd.DataFrame(np.column_stack((starDf_2['ethnicity_grouped'] == 1, starDf_2['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
@@ -1257,8 +1882,10 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1268,8 +1895,10 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_1,
                                            curso = "1st Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1279,8 +1908,10 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_2,
                                            curso = "2nd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
@@ -1290,14 +1921,19 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_3,
                                            curso = "3rd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
 ```
+
+Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, el único curso donde el efecto tratamiento no muestra diferencias amplias es en el primer curso, como se observa en el gráfico.
 
 #### Efecto del tratamiento por género
 
 ```{python}
+varGATE = "Género"
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['gender'] == 1, starDf_k['gender'] == 0)), columns=['female', 'male'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['gender'] == 1, starDf_1['gender'] == 0)), columns=['female', 'male'])
 grupos_2 = pd.DataFrame(np.column_stack((starDf_2['gender'] == 1, starDf_2['gender'] == 0)), columns=['female', 'male'])
@@ -1310,8 +1946,10 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1321,8 +1959,10 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_1,
                                            curso = "1st Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1332,8 +1972,10 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_2,
                                            curso = "2nd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
@@ -1343,14 +1985,19 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_3,
                                            curso = "3rd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
 ```
+
+En este caso observamos que las mujeres se habrían beneficiado más del tratamiento que los hombres, sin embargo en kindergarten, que es cuando los niños entran en el sistema educativo, serían los hombres los que se beneficiarian más que las mujeres, al igual que en segundo pero de forma muy ligera. En el resto de cursos son las mujeres las que perciben mayor efecto tratamiento.
 
 #### Efecto del tratamiento por tipo de escuela
 
 ```{python}
+varGATE = "Tipo de escuela"
 # Hay 4 grupos, 'inner-city', 'suburban', 'rural', 'urban'
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['schoolk_inner-city'] == 1, starDf_k['schoolk_suburban'] == 1, starDf_k['schoolk_rural'] == 1, starDf_k['schoolk_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['school1_inner-city'] == 1, starDf_1['school1_suburban'] == 1, starDf_1['school1_rural'] == 1, starDf_1['school1_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
@@ -1365,8 +2012,10 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1376,8 +2025,10 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_1,
                                            curso = "1st Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1387,8 +2038,10 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_2,
                                            curso = "2nd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
                                            
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
@@ -1398,23 +2051,15 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_l_xgb=ml_m_xgb,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
+                                           seed = 666,
                                            grupos=grupos_3,
                                            curso = "3rd Grade",
+                                           varGATE = varGATE,
                                            n_folds=10)
 
 
 ```
 
--   ETNIA:
-
-Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, el único curso donde el efecto tratamiento no muestra diferencias significativas es en el primer curso, como se observa en el gráfico.
-
--   GENERO:
-
-En este caso observamos que las mujeres se habrían beneficiado más del tratamiento que los hombres, solo cambia en kindergarten, donde los hombres se beneficiarian significativamente más que sus contrapartes.
-
--   SCHOOL LOCATION:
-
-El p-valor de los modelos DoubleML es significativo al 99% para todos los cursos con unos coeficientes que tienen valores razonables, entre 12 y 22 puntos como efecto tratamiento, lo que llama la atención es la evolución de los efectos heterogeneos, entre un modelo xgboost y un random forest no se observan diferencias apreciables. En kindergarten, se aprecia mayor efecto tratamiento en los colegios de los barrios urbanos e inner-city, en primero, los mayores efectos se aprecian en los barrios urbanos y sub-urbanos, en segundo sin embargo el efecto de los barrios urbanos es negativo pero con gran variabilidad, lo cual indicaría que probablemente el ajuste de esa variable no sea correcto, el efecto mayor se observa en los barrios inner-city. En tercero el resultado es similar a segundo. Los resultados que se obtienen nos pueden indicar que los barrios inner-city serían en los que mayor efecto tratamiento presentan y tras ellos los barrios urbanos, aunque para los dos últimos años no podemos obtener resultados concluyentes. Los colegios ubicados en zonas rurales serían los que menor efecto tratamiento presentan.
+Llama la atención la evolución de los efectos heterogeneos a lo de los cursos. En kindergarten, se aprecia mayor efecto tratamiento en los colegios de los barrios urbanos e inner-city, en primero, los mayores efectos se aprecian en los barrios urbanos y sub-urbanos. En segundo sin embargo, el efecto de los barrios urbanos es negativo pero con gran variabilidad, lo cual indica que probablemente el ajuste de esa variable no sea correcto, el efecto mayor se observa en los barrios inner-city. En tercero el resultado es similar a segundo. Los resultados que se obtienen nos pueden indicar que los barrios inner-city serían en los que mayor efecto tratamiento presentan y tras ellos los barrios urbanos, aunque para los dos últimos años no podemos obtener resultados concluyentes. Los colegios ubicados en zonas rurales serían los que menor efecto tratamiento presentan.
 
 *Añadir referencias*
