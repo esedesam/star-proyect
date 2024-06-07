@@ -930,6 +930,12 @@ write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 
 ## Aplicación ténicas de match
 
+Vamos a realizar técnicas de Match IT, una metodología utilizada para mejorar la precisión y eficiencia en la correspondencia de datos. La implementación de Match IT es crucial para garantizar la integridad y calidad de la información en diversos sistemas, facilitando la identificación y consolidación de registros duplicados o inconsistentes. Al aplicar estas técnicas, se optimizan procesos de gestión de datos, lo que resulta en decisiones más informadas y una administración más eficaz de los recursos.
+
+Si asumimos que existen variables confusoras en la estimación del ATE, se reqquiere el balanceo de los datos y qu epara una de las variables haya una probabilidad entre 0 y 1 de recibir el tratamiento. Realizamos el mathing e imputamos la respuesta potencial que falta de cada variable (contrafactual).
+
+En primer lugar, para poder aplicar el método de Match IT, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan NAs.
+
 ```{r match-df-year}
 starDf_k <- starDf %>%
               select(gender, ethnicity_grouped, stark, markK, lunchk, experiencek, schoolk) %>%
@@ -953,6 +959,7 @@ starDf_3 <- starDf %>%
               mutate(star3 = fct_drop(star3))
 ```
 
+Una vez obtenidos los Data Frames limpios, realicamos el Match It con las variables: experience, lunch, school, gender y ethnicity_grouped.
 
 ```{r match-object}
 star_k_match_object <- matchit(stark ~ experiencek + lunchk + schoolk + gender + ethnicity_grouped,
@@ -977,21 +984,36 @@ star_3_match_object <- matchit(star3 ~ experience3 + lunch3 + school3 + gender +
                                 estimand = "ATE")
 ```
 
+Comprobamos el equlibrio de las variables tras el Match It visualizando los love plots de los distintos cursos.
 
-```{r match-love-plot}
+```{r match-love-plot-kindergarden, fig.cap=capFig("Love-plot del curso kindergarden.", y = "match-love-plot-kindergarden")}
+
 love.plot(star_k_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
+```
+
+```{r match-love-plot-grade1, fig.cap=capFig("Love-plot del curso grade 1.", y = "match-love-plot-grade1")}
 love.plot(star_1_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
+```
+
+```{r match-love-plot-grade2, fig.cap=capFig("Love-plot del curso grade 2.", y = "match-love-plot-grade2")}
+
 love.plot(star_2_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
+```
+
+```{r match-love-plot-grade3, fig.cap=capFig("Love-plot del curso grade 3.", y = "match-love-plot-grade3")}
 love.plot(star_3_match_object,stats = c("m","var","ks"),
             abs = TRUE,thresholds=c(m=0.1,ks=0.05,var=2),
             stars = "std")
 ```
+Por lo general, observamos que las distribuciones de tratamiento y control ya estaban bastante balanceadas, el proceso mejora las métricas mostradas, pero no excesivamente. Como caso particular a considerar, vemos que la variables experience para el curso grade1 estaba bastante desbalanceada, pudiendo afectar de forma considerable a la estimación del ATE.
+
+Por último, obtenemos los datos correspondientes al proceso de Match It, para poder recuperar el ATE.
 
 ```{r match-data}
 star_k_match_data <- match.data(star_k_match_object)
@@ -1000,7 +1022,9 @@ star_2_match_data <- match.data(star_2_match_object)
 star_3_match_data <- match.data(star_3_match_object)
 ```
 
-```{r match-meandiff-kindergarden}
+Recuperación del ATE para el curso kindergarden:
+
+```{r match-meandiff-kindergarden, message = FALSE}
 modelo_match_k <- glm(markK ~ stark*(experiencek + lunchk + schoolk + gender +  ethnicity_grouped),
                       data=star_k_match_data,family = gaussian(),
                       weights = weights)
@@ -1011,7 +1035,6 @@ pred.gformula <- predictions(modelo_match_k,
                       newdata = star_k_match_data, # ATE
                       wts = "weights",
                       by="stark") # variable de agregación
-pred.gformula
 
 avg_comparisons(modelo_match_k,variables = "stark",
                       vcov = ~subclass,   # estimacion robusta de se
@@ -1019,7 +1042,9 @@ avg_comparisons(modelo_match_k,variables = "stark",
                       wts = "weights")
 ```
 
-```{r match-meandiff-grade1}
+Recuperación del ATE para el curso grade 1:
+
+```{r match-meandiff-grade1, message = FALSE}
 modelo_match_1 <- glm(mark1 ~ star1*(experience1 + lunch1 + school1 + gender +  ethnicity_grouped),
                       data=star_1_match_data,family = gaussian(),
                       weights = weights)
@@ -1031,7 +1056,6 @@ pred.gformula <- predictions(modelo_match_1,
                       wts = "weights",
                       by="star1") # variable de agregación
 
-pred.gformula
 
 avg_comparisons(modelo_match_1,variables = "star1",
                       vcov = ~subclass,   # estimacion robusta de se
@@ -1040,7 +1064,9 @@ avg_comparisons(modelo_match_1,variables = "star1",
 
 ```
 
-```{r match-meandiff-grade2}
+Recuperación del ATE para el curso grade 2:
+
+```{r match-meandiff-grade2, message = FALSE}
 modelo_match_2 <- glm(mark2 ~ star2*(experience2 + lunch2 + school2 + gender +  ethnicity_grouped),
                       data=star_2_match_data,family = gaussian(),
                       weights = weights)
@@ -1050,7 +1076,6 @@ pred.gformula <- predictions(modelo_match_2,
                       newdata = star_2_match_data, # ATE
                       wts = "weights",
                       by="star2") # variable de agregación
-pred.gformula
 
 avg_comparisons(modelo_match_2,variables = "star2",
                       vcov = ~subclass,   # estimacion robusta de se
@@ -1058,17 +1083,19 @@ avg_comparisons(modelo_match_2,variables = "star2",
                       wts = "weights")
 ```
 
-```{r match-meandiff-grade3}
+Recuperación del ATE para el curso grade 3:
+
+```{r match-meandiff-grade3, message = FALSE}
 modelo_match_3 <- glm(mark3 ~ star3*(experience3 + lunch3 + school3 + gender +  ethnicity_grouped),
                       data=star_3_match_data,family = gaussian(),
                       weights = weights)
+
 pred.gformula <- predictions(modelo_match_3,
                       variables = "star3", # variable para la que generar contrafactuales
                       vcov = ~subclass,   # estimacion robusta de se
                       newdata = star_3_match_data, # ATE
                       wts = "weights",
                       by="star3") # variable de agregación
-pred.gformula
 
 avg_comparisons(modelo_match_3,variables = "star3",
                       vcov = ~subclass,   # estimacion robusta de se
@@ -1076,10 +1103,12 @@ avg_comparisons(modelo_match_3,variables = "star3",
                       wts = "weights")
 ```
 
+Observamos que, en todos los casos, el efecto causal se reduce respecto a la previa obtención del ATE con los modelos lineales sin usar Match It. Esta ligera reducción puede deberse a la consideración de variables de confusión en el tratameinto. Dado que está mejor identificado el efecto causal, esta estimación debería ser más fiable.
+
 ## Uso de Meta-Learners
 
 Los meta-learners se basan en utilización de métodos ML disponibles diseñados para tareas de regresión o clasificación (no modificados para inferencia causal). Los meta-learners son una manera sencilla de aprovechar los métodos predictivos ML para estimar efectos condicionales. Se agrupan a su vez en métodos para la predicción de la respuesta condicional (S- y T-learner) o aquellos además usan una estimación del *Propensity Score* (p.e. DR- y X-learner).
-
+to
 Se utiliza la librería `econml` [@econml].
 
 
