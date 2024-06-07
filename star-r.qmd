@@ -1,8 +1,8 @@
 ---
 title: "Proyecto STAR"
-subtitle: "Inferencia Causal"
+subtitle: "Inferencia Causal y Aprendizaje Máquina"
 description: "Máster en Ciencia de Datos (UV)"
-author: "Adrián Lara, Jesús Martínez, Miguel Muñoz, Samuel Ortega & Pablo Vicente"
+author: "Adrián Lara, Jesús Martínez, Miguel Muñoz, Samuel Ortega & Pablo Vicente."
 date: last-modified
 date-format: "DD-MM-YYYY"
 title-block-banner: "#B0C8D6"
@@ -102,6 +102,11 @@ capFig <- function(x, y){
   x
 }
 ```
+
+**Repositorio de GitHub**.
+
+El enlace para ver el proceso de creación del proyecto se encuentra en el siguiente [repositorio de GitHub](https://github.com/esedesam/star-proyect.git).
+
 
 # Introducción
 
@@ -625,7 +630,7 @@ Estas variables son:
 Veremos posteriormente que la variable `schoolid` absorbe mucha de la variabilidad explicada en un modelo de regresión múltiple, pero resulta problemática en estimaciones de ATE con otro tipo de modelo y por ello no la incluimos en el modelo DAG. Al resto de variables como `tethnicity`, `degree` o `ladder` les sucedía algo parecido, pero en este caso tampoco aportaban tanto a la variabilidad explicada en el modelo de regresión.
 
 
-```{r DAGmodel, fig.cap=capFig("Modelo DAG para la recuperación del efecto del tratamiento.", y = "DAGmodel")}
+```{r DAGmodel, fig.cap=capFig("Modelo DAG para la recuperación del efecto del tratamiento. Consideramos las variables son de confusión.", y = "DAGmodel")}
 dag <- dagify(
   mark ~ star + gender + experience + ethnnicity + lunch + school,
   star ~ gender + experience + ethnnicity + lunch + school,
@@ -931,13 +936,13 @@ write.csv(starDf, "data/starDf.csv", row.names = FALSE)
 
 ## Aplicación de ténicas de matching
 
-Si asumimos que ha habido fallos en el protocolo de asignación aleatoria del tratamiento, entonces la condición de independencia de los resultdos potenciales con el estatus de tratamiento no se cumple y el estimador diferenncia de medias es un estimador sesgado. No obstante, podemos considerar que las diferenccias en el estatus de tratamiento emergen por diferencias en las variables de confusión X, anteriormente mencionadas, y que una vez controladas la independencia se restablece (independencia condicional).
+Si asumimos que ha habido fallos en el protocolo de asignación aleatoria del tratamiento, entonces la condición de independencia de los resultdos potenciales con el estatus de tratamiento no se cumple y el estimador diferencia de medias es un estimador sesgado. No obstante, podemos considerar que las diferencias en el estatus de tratamiento emergen por diferencias en las variables de confusión X, anteriormente mencionadas, y que una vez controladas la independencia se restablece (independencia condicional).
 
 Para identificar el efecto causal considerando estas vairables de confusión, se requiere además de la independencia condicional, que haya solapamiento, es decir, que individuos con mismos valores de X tengan una probabilidad positiva de ser participantes y no participantes y que haya equilibrio en las variables de confusión, es decir que la distribución en X de los tratados y los no tratados sean similares. Con tal de conseguir estos objetivos empleamos técnicas de matching.
 
-El matching es un método no paramétrico de pre-tratamiento de la muestra que imputa el resultado potencial no observado de una unidad utilizando resultados observables de unidades similares (en variables de confusión) con estatus de tratamiento opuesto. Esta técnica puede utilizarse para para aumentar la eficiencia de la estimación del efecto causal cuando se tiene una base de datos rica en características observables, si bien no permite eliminar el sesgo que emerge consecuencia de variables de confusión no observadas.
+El matching es un método no paramétrico de pre-tratamiento de la muestra que imputa el resultado potencial no observado de una unidad utilizando resultados observables de unidades similares (en variables de confusión) con estatus de tratamiento opuesto. Esta técnica puede utilizarse para aumentar la eficiencia de la estimación del efecto causal cuando se tiene una base de datos rica en características observables, si bien no permite eliminar el sesgo que emerge consecuencia de variables de confusión no observadas.
 
-En primer lugar, para poder aplicar el matching, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan `NA`.
+En primer lugar, para poder aplicar el matching, debemos trabajar sin datos faltantes. En este caso, eliminaremos los registros que contengan `NA` (tras separar en 4 conjuntos de datos, uno por cada curso).
 
 ```{r match-df-year}
 starDf_k <- starDf %>%
@@ -1182,7 +1187,7 @@ starDf = pd.read_csv("./data/starDf.csv")
 
 Para la inclusión en los diferentes modelos necesitamos tener las cosas bien preprocesadas, ya que los metalearners solo admiten variables que sean numéricas. Se transformarán las variables categóricas a variables *dummy* y se eliminarán las filas con valores faltantes cuando sea necesario. Un ejemplo del conjunto de datos que tenemos se muestra a continuación. Puede observarse que nos hemos quedado con las variables del modelo DAG que dijimos con anterioridad.
 
-Una cosa relevante de mencionar es que a partir de aquí *nos hemos centrado en evaluar solo el tratamiento de la clase pequeña frente a la clase regular*, ya que se ha visto anteriormente que entre la clase regular y la clase regular con ayuda no parecía haber diferencias significativas.
+Una cosa relevante de mencionar es que a partir de aquí **nos hemos centrado en evaluar solo el tratamiento de la clase pequeña frente a la clase regular**, ya que se ha visto anteriormente que entre la clase regular y la clase regular con ayuda no parecía haber diferencias significativas.
 
 
 ```{python dfPreprocessing}
@@ -1296,17 +1301,17 @@ axs[0, 0].set_ylabel('Valor de la respuesta')
 
 # Gráfico para Primer Grado
 axs[0, 1].boxplot(respuesta_1, labels=etiquetas)
-axs[0, 1].set_title('Primer Grado')
+axs[0, 1].set_title('Primer Curso')
 
 # Gráfico para Segundo Grado
 axs[1, 0].boxplot(respuesta_2, labels=etiquetas)
-axs[1, 0].set_title('Segundo Grado')
+axs[1, 0].set_title('Segundo Curso')
 axs[1, 0].set_ylabel('Valor de la respuesta')
 axs[1, 0].set_xlabel('Tratamiento')
 
 # Gráfico para Tercer Grado
 axs[1, 1].boxplot(respuesta_3, labels=etiquetas)
-axs[1, 1].set_title('Tercer Grado')
+axs[1, 1].set_title('Tercer Curso')
 axs[1, 1].set_xlabel('Tratamiento')
 
 # Ajustar diseño
