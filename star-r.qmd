@@ -1699,6 +1699,7 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from doubleml import DoubleMLData
 from xgboost import XGBClassifier, XGBRegressor
 from doubleml import DoubleMLPLR
+from tabulate import tabulate
 ```
 
 
@@ -1709,10 +1710,11 @@ DoubleML utiliza un enfoque que combina la regresión de residuos sobre residuos
 En el código se ha creado una función llamada `run_dml_analysis` que utiliza la biblioteca DoubleML para realizar un análisis causal. Se han empleado los modelos de `RandomForest` y `XGB` tanto en su versión de *Regresor* como *Clasificador* (según queramos sacar la media condicional de respuesta o el propensity score, respectivamente).
 Utilizando estos modelos, se ajustan dos tipos de modelos `DoubleMLPLR` (*Double ML with Partially Linear Regression*), uno para cada algoritmo de aprendizaje automático. Luego, se generan resúmenes de los resultados y, si se proporcionan grupos, se calculan los efectos condicionales (GATE) para cada modelo y se visualizan mediante gráficos de barras con intervalos de confianza. 
 
-
 ```{python run_dml_analysis-function}
-def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, varGATE = None, grupos=None, curso=None, n_folds=10, show_summary=True):
+def run_dml_analysis(data, y_col, d_cols, ml_l_rf, ml_l_xgb, ml_m_rf, ml_m_xgb, seed = seed, varGATE = None, grupos=None, curso=None, n_folds=10, show_summary=True):
   
+    np.random.seed(seed)
+    
     # Definir datos para DoubleML
     dml_data = DoubleMLData(data, y_col=y_col, d_cols=d_cols)
 
@@ -1803,12 +1805,142 @@ ml_m_xgb = XGBRegressor(objective="reg:squarederror", random_state=seed)
 ml_e_xgb = XGBClassifier(use_label_encoder=False, objective="binary:logistic", eval_metric="logloss", random_state=seed)
 ```
 
+Se muestran en primer lugar los resultados obtenidos para el *Average Treatment Effect (ATE)* en la siguiente Tabla.
+
+```{python ate-summary-doubleml, include = FALSE}
+dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
+                                           y_col='markK',
+                                           d_cols='stark',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=None,
+                                           curso = "Kindergarten",
+                                           show_summary=False,
+                                           n_folds=10)
+
+dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
+                                           y_col='mark1',
+                                           d_cols='star1',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=None,
+                                           curso = "1st Grade",
+                                           show_summary=False,
+                                           n_folds=10)
+                                           
+dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
+                                           y_col='mark2',
+                                           d_cols='star2',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=None,
+                                           curso = "2nd Grade",
+                                           show_summary=False,
+                                           n_folds=10)
+                                           
+dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
+                                           y_col='mark3',
+                                           d_cols='star3',
+                                           ml_l_rf=ml_m_rf,
+                                           ml_l_xgb=ml_m_xgb,
+                                           ml_m_rf=ml_e_rf,
+                                           ml_m_xgb=ml_e_xgb,
+                                           grupos=None,
+                                           curso = "3rd Grade",
+                                           show_summary=False,
+                                           n_folds=10)
+```
+
+```{python ate-summary-doubleml-table, include = FALSE, message = FALSE}
+summaries = {
+    "Curso": ["Kinder", "Kinder", "1º Curso", "1º Curso", "2º Curso", "2º Curso", "3º Curso", "3º Curso"],
+    "Modelo": ["RF", "XGBoost", "RF", "XGBoost", "RF", "XGB", "RF", "XGB"],
+    "Coef": [
+        dml_plr_rf_k.summary['coef'][0], dml_plr_xgb_k.summary['coef'][0],
+        dml_plr_rf_1.summary['coef'][0], dml_plr_xgb_1.summary['coef'][0],
+        dml_plr_rf_2.summary['coef'][0], dml_plr_xgb_2.summary['coef'][0],
+        dml_plr_rf_3.summary['coef'][0], dml_plr_xgb_3.summary['coef'][0]
+    ],
+    "Std Err": [
+        dml_plr_rf_k.summary['std err'][0], dml_plr_xgb_k.summary['std err'][0],
+        dml_plr_rf_1.summary['std err'][0], dml_plr_xgb_1.summary['std err'][0],
+        dml_plr_rf_2.summary['std err'][0], dml_plr_xgb_2.summary['std err'][0],
+        dml_plr_rf_3.summary['std err'][0], dml_plr_xgb_3.summary['std err'][0]
+    ],
+    "t": [
+        dml_plr_rf_k.summary['t'][0], dml_plr_xgb_k.summary['t'][0],
+        dml_plr_rf_1.summary['t'][0], dml_plr_xgb_1.summary['t'][0],
+        dml_plr_rf_2.summary['t'][0], dml_plr_xgb_2.summary['t'][0],
+        dml_plr_rf_3.summary['t'][0], dml_plr_xgb_3.summary['t'][0]
+    ],
+    "P>|t|": [
+        dml_plr_rf_k.summary['P>|t|'][0], dml_plr_xgb_k.summary['P>|t|'][0],
+        dml_plr_rf_1.summary['P>|t|'][0], dml_plr_xgb_1.summary['P>|t|'][0],
+        dml_plr_rf_2.summary['P>|t|'][0], dml_plr_xgb_2.summary['P>|t|'][0],
+        dml_plr_rf_3.summary['P>|t|'][0], dml_plr_xgb_3.summary['P>|t|'][0]
+    ],
+    "2.5 %": [
+        dml_plr_rf_k.summary['2.5 %'][0], dml_plr_xgb_k.summary['2.5 %'][0],
+        dml_plr_rf_1.summary['2.5 %'][0], dml_plr_xgb_1.summary['2.5 %'][0],
+        dml_plr_rf_2.summary['2.5 %'][0], dml_plr_xgb_2.summary['2.5 %'][0],
+        dml_plr_rf_3.summary['2.5 %'][0], dml_plr_xgb_3.summary['2.5 %'][0]
+    ],
+    "97.5 %": [
+        dml_plr_rf_k.summary['97.5 %'][0], dml_plr_xgb_k.summary['97.5 %'][0],
+        dml_plr_rf_1.summary['97.5 %'][0], dml_plr_xgb_1.summary['97.5 %'][0],
+        dml_plr_rf_2.summary['97.5 %'][0], dml_plr_xgb_2.summary['97.5 %'][0],
+        dml_plr_rf_3.summary['97.5 %'][0], dml_plr_xgb_3.summary['97.5 %'][0]
+    ]
+}
+
+summary_df = pd.DataFrame(summaries)
+```
+
+```{python showingSummary_df, include = FALSE}
+# Formatear el DataFrame para mostrar solo dos decimales
+summary_df_formatted = summary_df.round(3)
+
+# Crear la figura y los ejes
+fig, ax = plt.subplots(figsize=(12, 3))  # Puedes ajustar el tamaño de la figura aquí
+
+ax.axis('off')
+ax.axis('tight')
+
+table = ax.table(cellText=summary_df_formatted.values, colLabels=summary_df_formatted.columns, cellLoc='center', loc='center')
+
+# Estilizar la tabla
+table.auto_set_font_size(False)
+table.set_fontsize(12)
+table.scale(1, 1)  # Puedes ajustar la escala aquí
+
+title = r'$\bf{Tabla\ 32.}$ Resultados obtenidos para el ATE con DoubleML.'
+plt.title(title, fontsize=16, pad=1)
+fig.tight_layout()
+
+plt.savefig("./images/ate_summary_doubleml.png", bbox_inches='tight', dpi=300)
+
+plt.show()
+```
+
+![](./images/ate_summary_doubleml.png)
+
+
+El valor de los coeficientes estimados por el modelo de DoubleML, indicada que con un p-valor << 0.05, existe un efecto estadísticamente significativo de la aplicación del tratamiento sobre la nota para todos los cursos, siendo los alumnos de primer grado donde este efecto sería mayor mientras que en segundo y tercero los coeficientes presentan valores similares, de entre 12 y 14 puntos. Para kindergarten sí observamos un incremento mayor, de entre 15 y 17 puntos.
+
 ### Group Average Treatment Effects (GATEs)
 
 #### Efecto del tratamiento por etnia
 
 
-```{python}
+```{python, echo = FALSE, message = FALSE}
+show_summary = False
+
 varGATE = "Etnia"
 
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['ethnicity_grouped'] == 1, starDf_k['ethnicity_grouped'] == 0)), columns=['cauc', 'afam+other'])
@@ -1827,6 +1959,7 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1837,8 +1970,9 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_1,
-                                           curso = "1st Grade",
+                                           curso = "Primer Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1849,10 +1983,12 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_2,
-                                           curso = "2nd Grade",
+                                           curso = "Segundo Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
-                                           
+```
+```{python, fig.cap = "<strong> Figura 43. </strong> Efecto del tratamiento por etnia en los diferentes cursos.", echo = FALSE, message = FALSE}
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            y_col='mark3',
                                            d_cols='star3',
@@ -1861,14 +1997,20 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_3,
-                                           curso = "3rd Grade",
+                                           curso = "Tercer Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
 ```
 
+
+
+Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, sobre todo en KinderGarten, tal y como se aprecia en trabajos como el de [@Mosteller]. En el resto de casos no puede asegurarse un efecto del tratamiento superior, puesto que hay cierto solapamiento entre los intervalos de confianza. 
+
+
 #### Efecto del tratamiento por género
 
-```{python}
+```{python, echo = FALSE, message = FALSE}
 varGATE = "Género"
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['gender'] == 1, starDf_k['gender'] == 0)), columns=['female', 'male'])
 grupos_1 = pd.DataFrame(np.column_stack((starDf_1['gender'] == 1, starDf_1['gender'] == 0)), columns=['female', 'male'])
@@ -1885,6 +2027,7 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1895,8 +2038,9 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_1,
-                                           curso = "1st Grade",
+                                           curso = "Primer Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1907,10 +2051,12 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_2,
-                                           curso = "2nd Grade",
+                                           curso = "Segundo Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
-                                           
+```
+```{python, fig.cap = "<strong> Figura 44. </strong> Efecto del tratamiento por género en los diferentes cursos.", echo = FALSE, message = FALSE}
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            y_col='mark3',
                                            d_cols='star3',
@@ -1919,14 +2065,18 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_3,
-                                           curso = "3rd Grade",
+                                           curso = "Tercer Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
 ```
 
+
+En general, no puede asegurarse que el tratamiento resulte más beneficioso para ninguno de los dos grupos (mujeres u hombres). Sin embargo, en Kindergarten parece ser que los hombres sí se ven más beneficiados.
+
 #### Efecto del tratamiento por tipo de escuela
 
-```{python}
+```{python, echo = FALSE, message = FALSE}
 varGATE = "Tipo de escuela"
 # Hay 4 grupos, 'inner-city', 'suburban', 'rural', 'urban'
 grupos_k = pd.DataFrame(np.column_stack((starDf_k['schoolk_inner-city'] == 1, starDf_k['schoolk_suburban'] == 1, starDf_k['schoolk_rural'] == 1, starDf_k['schoolk_urban'] == 1)), columns=['inner-city', 'suburban', 'rural', 'urban'])
@@ -1945,6 +2095,7 @@ dml_plr_rf_k, dml_plr_xgb_k = run_dml_analysis(data=starDf_k,
                                            grupos=grupos_k,
                                            curso = "Kindergarten",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
 
 dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
@@ -1955,8 +2106,9 @@ dml_plr_rf_1, dml_plr_xgb_1 = run_dml_analysis(data=starDf_1,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_1,
-                                           curso = "1st Grade",
+                                           curso = "Primer Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
                                            
 dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
@@ -1967,10 +2119,13 @@ dml_plr_rf_2, dml_plr_xgb_2 = run_dml_analysis(data=starDf_2,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_2,
-                                           curso = "2nd Grade",
+                                           curso = "Segundo Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
-                                           
+                                          
+```
+```{python, fig.cap = "<strong> Figura 45. </strong> Efecto del tratamiento por tipo de escuela en los diferentes cursos.", echo = FALSE, message = FALSE}
 dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            y_col='mark3',
                                            d_cols='star3',
@@ -1979,25 +2134,14 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
                                            ml_m_rf=ml_e_rf,
                                            ml_m_xgb=ml_e_xgb,
                                            grupos=grupos_3,
-                                           curso = "3rd Grade",
+                                           curso = "Tercer Curso",
                                            varGATE = varGATE,
+                                           show_summary = show_summary,
                                            n_folds=10)
-
-
 ```
 
-*EXPLICACIONES POR REVISAR DE ADRIÁN*
 
-ETNIA:
+Llama la atención la evolución de los efectos heterogéneos a lo de los cursos. En Kindergarten se aprecia mayor efecto tratamiento en los colegios de los barrios urbanos e inner-city (aunque sí es cierto que hay cierto solapamiento en el intervalo de confianza por debajo). En primer curso, los mayores efectos parece recibirlos el suburbano, mientras que en urbano no queda del todo claro puesto que hay un intervalo de confianza demasiado amplio como para hacer afirmaciones. Por otra parte, en segundo y tercero parece haber un resultado algo mayor para inner-city, aunque de nuevo no podemos sacar conclusiones precipitadas puesto que hay solapamiento en los intervalos de confianza. Urbano ofrece intervalos de confianza demasiado grandes, indicando que no hemos podido terminar de encontrar el modelo que mejor se ajuste a esta clase en dicha variable.
 
-Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, el único curso donde el efecto tratamiento no muestra diferencias significativas es en el primer curso, como se observa en el gráfico.
-
-GENERO:
-
-En este caso observamos que las mujeres se habrían beneficiado más del tratamiento que los hombres, sin embargo en kindergarten, que es cuando los niños entran en el sistema educativo, serían los hombres los que se beneficiarian más que las mujeres. En el resto de cursos son las mujeres las que perciben mayor efecto tratamiento.
-
-SCHOOL LOCATION:
-
-El p-valor de los modelos DoubleML es significativo al 99% para todos los cursos con unos coeficientes que tienen valores razonables, entre 12 y 22 puntos como efecto tratamiento, lo que llama la atención es la evolución de los efectos heterogeneos, entre un modelo xgboost y un random forest no se observan diferencias apreciables. En kindergarten, se aprecia mayor efecto tratamiento en los colegios de los barrios urbanos e inner-city, en primero, los mayores efectos se aprecian en los barrios urbanos y sub-urbanos, en segundo sin embargo el efecto de los barrios urbanos es negativo pero con gran variabilidad lo cual indica que probablemente el ajuste de esa variable no sea correcto, el efecto mayor se observa en los barrios inner-city. En tercero el resultado es similar a segundo. Los resultados que se obtienen nos pueden indicar que los barrios inner-city serían en los que mayor efecto tratamiento presentan y tras ellos los barrios urbanos, aunque para los dos últimos años no podemos obtener resultados concluyentes. Los colegios ubicados en zonas rurales serían los que menor efecto tratamiento presentan.
 
 # Referencias
