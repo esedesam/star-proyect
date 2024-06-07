@@ -1990,16 +1990,14 @@ dml_plr_rf_3, dml_plr_xgb_3 = run_dml_analysis(data=starDf_3,
 
 ETNIA:
 
-Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, el único curso donde el efecto tratamiento no muestra diferencias significativas es en el primer curso como se observa en el gráfico, si bien es cierto que como se describe en el artículo sobre STAR, hubo cambios en la asignación en el primer curso, pudiendo alterar potencialmente los resultados, sin embargo, no tenemos ninguna certidumbre de que el motivo de la no heteregeneidad sea esa.
+Parece que los grupos no caucásicos se benefician en mayor medida del hecho de estar en clases más reducidas, el único curso donde el efecto tratamiento no muestra diferencias significativas es en el primer curso, como se observa en el gráfico.
 
 GENERO:
 
-En este caso observamos que los hombres se habrían beneficiado más del tratamiento que las mujeres, pero, al igual que para la variable etnia, en el primer curso, la tendencia se revierte, donde las mujeres se beneficiarían más del tratamiento. Para el resto de cursos, los hombres se beneficiarian más que las mujeres, lo que podría parecer contraintuitivo.
+En este caso observamos que las hombres se habrían beneficiado más del tratamiento que las hombres, sin embargo en kindergarten, que es cuando los niños entran en el sistema educativo, serían los hombres los que se beneficiarian más que las mujeres. En el resto de cursos son las mujeres las que perciben mayor efecto tratamiento.
 
 SCHOOL LOCATION:
 
 El p-valor de los modelos DoubleML es significativo al 99% para todos los cursos con unos coeficientes que tienen valores razonables, entre 12 y 22 puntos como efecto tratamiento, lo que llama la atención es la evolución de los efectos heterogeneos, entre un modelo xgboost y un random forest no se observan diferencias apreciables. En kindergarten, se aprecia mayor efecto tratamiento en los colegios de los barrios urbanos e inner-city, en primero, los mayores efectos se aprecian en los barrios urbanos y sub-urbanos, en segundo sin embargo el efecto de los barrios urbanos es negativo pero con gran variabilidad lo cual indica que probablemente el ajuste de esa variable no sea correcto, el efecto mayor se observa en los barrios inner-city. En tercero el resultado es similar a segundo. Los resultados que se obtienen nos pueden indicar que los barrios inner-city serían en los que mayor efecto tratamiento presentan y tras ellos los barrios urbanos, aunque para los dos últimos años no podemos obtener resultados concluyentes. Los colegios ubicados en zonas rurales serían los que menor efecto tratamiento presentan.
-
-
 
 # Referencias
